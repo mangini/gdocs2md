@@ -94,6 +94,8 @@ function processParagraph(index, element, inSrc, imageCounter) {
         "bytes": element.getChild(i).getBlob().getBytes(), 
         "type": contentType, 
         "name": name});
+    } else if (t === DocumentApp.ElementType.PAGE_BREAK) {
+      // ignore
     } else {
       throw "Paragraph "+index+" of type "+element.getType()+" has an unsupported child: "+t+" "+element.getChild(i).getText()+" index="+index;
     }
