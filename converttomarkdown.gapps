@@ -28,7 +28,7 @@ function ConvertToMarkdown() {
       } else if (inClass) {
         text+=result.text+"\n\n";
       } else if (inSrc) {
-        text+=("    "+result.text+"\n");
+        text+=("    "+escapeHTML(result.text)+"\n");
       } else if (result.text && result.text.length>0) {
         text+=result.text+"\n\n";
       }
@@ -51,6 +51,10 @@ function ConvertToMarkdown() {
                     "Your converted markdown document is attached (converted from "+DocumentApp.getActiveDocument().getUrl()+")"+
                     "\n\nDon't know how to use the format options? See http://github.com/mangini/gdocs2md\n",
                     { "attachments": attachments });
+}
+
+function escapeHTML(text) {
+  return text.replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }
 
 function processParagraph(index, element, inSrc, imageCounter, listCounters) {
