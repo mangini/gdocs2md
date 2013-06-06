@@ -15,6 +15,7 @@ You can run the script again in the same document whenever you want, just clicki
 
 
 ## Interpreted formats
+  * *NEW*: Numbered lists are converted correctly now, including nested lists
   * *NEW*: images are correctly extracted and sent as attachments
   * *NEW*: Table of contents is replaced by `[[TOC]]`
   * paragraphs are separated by two newlines
