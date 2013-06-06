@@ -4,12 +4,13 @@ function ConvertToMarkdown() {
   var inSrc = false;
   var inClass = false;
   var globalImageCounter = 0;
+  var globalListCounters = {};
   
   var attachments = [];
   
   for (var i=0; i<numChildren; i++) {
     var child = DocumentApp.getActiveDocument().getActiveSection().getChild(i);
-    var result = processParagraph(i, child, inSrc, globalImageCounter);
+    var result = processParagraph(i, child, inSrc, globalImageCounter, globalListCounters);
     globalImageCounter += (result && result.images) ? result.images.length : 0;
     if (result!==null) {
       if (result.source==="start" && !inSrc) {
@@ -52,7 +53,7 @@ function ConvertToMarkdown() {
                     { "attachments": attachments });
 }
 
-function processParagraph(index, element, inSrc, imageCounter) {
+function processParagraph(index, element, inSrc, imageCounter, listCounters) {
   if (element.getNumChildren()==0) {
     return null;
   }
@@ -121,7 +122,7 @@ function processParagraph(index, element, inSrc, imageCounter) {
                   '"></iframe>';
   } else {
 
-    prefix = findPrefix(inSrc, element);
+    prefix = findPrefix(inSrc, element, listCounters);
   
     var pOut = "";
     for (var i=0; i<textElements.length; i++) {
@@ -134,7 +135,7 @@ function processParagraph(index, element, inSrc, imageCounter) {
   return result;
 }
 
-function findPrefix(inSrc, element) {
+function findPrefix(inSrc, element, listCounters) {
   var prefix="";
   if (!inSrc) {
     if (element.getType()===DocumentApp.ElementType.PARAGRAPH) {
@@ -159,7 +160,11 @@ function findPrefix(inSrc, element) {
           gt === DocumentApp.GlyphType.SQUARE_BULLET) {
         prefix += "* ";
       } else {
-        prefix += "1. ";
+        var key = listItem.getListId() + '.' + listItem.getNestingLevel();
+        var counter = listCounters[key] || 0;
+        counter++;
+        listCounters[key] = counter;
+        prefix += counter+". ";
       }
     }
   }
