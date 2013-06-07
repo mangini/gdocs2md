@@ -104,8 +104,10 @@ function processParagraph(index, element, inSrc, imageCounter, listCounters) {
         "name": name});
     } else if (t === DocumentApp.ElementType.PAGE_BREAK) {
       // ignore
+    } else if (t === DocumentApp.ElementType.FOOTNOTE) {
+      textElements.push(' (NOTE: '+element.getChild(i).getFootnoteContents().getText()+')');
     } else {
-      throw "Paragraph "+index+" of type "+element.getType()+" has an unsupported child: "+t+" "+element.getChild(i).getText()+" index="+index;
+      throw "Paragraph "+index+" of type "+element.getType()+" has an unsupported child: "+t+" "+(element.getChild(i)["getText"] ? element.getChild(i).getText():'')+" index="+index;
     }
   }
 
