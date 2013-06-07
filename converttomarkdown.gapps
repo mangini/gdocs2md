@@ -41,7 +41,10 @@ function ConvertToMarkdown() {
             "content": result.images[j].bytes } );
         }
       }
+    } else if (inSrc) { // support empty lines inside source code
+      text+='\n';
     }
+      
   }
   
   attachments.push({"fileName":DocumentApp.getActiveDocument().getName()+".md", "mimeType": "text/plain", "content": text});
