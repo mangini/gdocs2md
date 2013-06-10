@@ -104,6 +104,8 @@ function processParagraph(index, element, inSrc, imageCounter, listCounters) {
         "name": name});
     } else if (t === DocumentApp.ElementType.PAGE_BREAK) {
       // ignore
+    } else if (t === DocumentApp.ElementType.HORIZONTAL_RULE) {
+      textElements.push('* * *\n');
     } else if (t === DocumentApp.ElementType.FOOTNOTE) {
       textElements.push(' (NOTE: '+element.getChild(i).getFootnoteContents().getText()+')');
     } else {
@@ -214,6 +216,15 @@ function processTextElement(inSrc, txt) {
         }
         pOut=pOut.substring(0, off)+'`'+pOut.substring(off, lastOff)+'`'+pOut.substring(lastOff);
       }
+    }
+    if (txt.isBold(off)) {
+      var d1 = d2 = "**";
+      if (txt.isItalic(off)) {
+        d1 = "** *"; d2 = "* **";
+      }
+      pOut=pOut.substring(0, off)+d1+pOut.substring(off, lastOff)+d2+pOut.substring(lastOff);
+    } else if (txt.isItalic(off)) {
+      pOut=pOut.substring(0, off)+'*'+pOut.substring(off, lastOff)+'*'+pOut.substring(lastOff);
     }
     lastOff=off;
   }
