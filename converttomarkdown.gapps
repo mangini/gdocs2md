@@ -140,6 +140,9 @@ function processParagraph(index, element, inSrc, imageCounter, listCounters) {
       pOut += processTextElement(inSrc, textElements[i]);
     }
 
+    // replace Unicode quotation marks
+    pOut = pOut.replace('\u201d', '"').replace('\u201c', '"');
+ 
     result.text = prefix+pOut;
   }
   
