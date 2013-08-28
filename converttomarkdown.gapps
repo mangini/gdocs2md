@@ -1,4 +1,4 @@
-function ConvertToMarkdown() {
+function exportDoc() {
   var numChildren = DocumentApp.getActiveDocument().getActiveSection().getNumChildren();
   var text = "";
   var inSrc = false;
