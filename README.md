@@ -14,7 +14,7 @@ This version will soon be extend so that it may also:
   * File -> New... -> Script file (name this files "export")
   * Paste the contents of [export.gapps](https://raw.github.com/lpanebr/gdocsExporter/master/export.gapps) contents into the code editor
   * File -> Save (add any name you like to the project: ie: gdocsExporter)
-  * Run -> onOpen (First run will require you to authorize it. Authorize and run again)
+  * Select the first file (code.gs) then Run -> onOpen (First run will require you to authorize it. Authorize and run again)
 
 Go tho your main google Document and look fot the "Export Document" menu and select the "Export to Markdown" option.
 The converted Markdown will be immediately sent as an attachment to your email. Images will be attached as well.
