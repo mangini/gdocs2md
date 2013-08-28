@@ -1,13 +1,18 @@
-gdocs2md
+gdocsExporter
 ========
 
-A simple Google Apps script to convert a properly formatted Google Drive Document to the markdown (.md) format.
+A simple Google Apps script to convert a properly formatted Google Drive Document to the markdown (.md) format. This project was forked from Renato Mangini original [mangini/gdocs2md](https://github.com/mangini/gdocs2md) project.
+
+This version will soon be extend so that it may also:
+
+ * export HTML
+ * save exported files to a folder in your Google Drive
 
 ## Usage
   * Open your Google Drive document (http://drive.google.com)
   * Tools -> Script Editor. Ignore (close) if you see a popup, clear the myFunction() or doGet() default empty function and paste the [code.gapps](https://raw.github.com/lpanebr/gdocsExporter/master/code.gapps) contents into the code editor
   * File -> New... -> Script file (name this files "export")
-  * Paste the contents of [code.gapps](https://raw.github.com/lpanebr/gdocsExporter/master/export.gapps) contents into the code editor
+  * Paste the contents of [export.gapps](https://raw.github.com/lpanebr/gdocsExporter/master/export.gapps) contents into the code editor
   * File -> Save (add any name you like to the project: ie: gdocsExporter)
   * Run -> onOpen (First run will require you to authorize it. Authorize and run again)
 
