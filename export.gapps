@@ -1,13 +1,13 @@
-function ConvertToMarkdown() {
+function exportDoc() {
   var numChildren = DocumentApp.getActiveDocument().getActiveSection().getNumChildren();
   var text = "";
   var inSrc = false;
   var inClass = false;
   var globalImageCounter = 0;
   var globalListCounters = {};
-  
+
   var attachments = [];
-  
+
   for (var i=0; i<numChildren; i++) {
     var child = DocumentApp.getActiveDocument().getActiveSection().getChild(i);
     var result = processParagraph(i, child, inSrc, globalImageCounter, globalListCounters);
@@ -32,7 +32,7 @@ function ConvertToMarkdown() {
       } else if (result.text && result.text.length>0) {
         text+=result.text+"\n\n";
       }
-      
+
       if (result.images && result.images.length>0) {
         for (var j=0; j<result.images.length; j++) {
           attachments.push( {
@@ -44,13 +44,13 @@ function ConvertToMarkdown() {
     } else if (inSrc) { // support empty lines inside source code
       text+='\n';
     }
-      
+
   }
-  
+
   attachments.push({"fileName":DocumentApp.getActiveDocument().getName()+".md", "mimeType": "text/plain", "content": text});
-  
-  MailApp.sendEmail(Session.getActiveUser().getEmail(), 
-                    "[MARKDOWN_MAKER] "+DocumentApp.getActiveDocument().getName(), 
+
+  MailApp.sendEmail(Session.getActiveUser().getEmail(),
+                    "[MARKDOWN_MAKER] "+DocumentApp.getActiveDocument().getName(),
                     "Your converted markdown document is attached (converted from "+DocumentApp.getActiveDocument().getUrl()+")"+
                     "\n\nDon't know how to use the format options? See http://github.com/mangini/gdocs2md\n",
                     { "attachments": attachments });
@@ -64,17 +64,17 @@ function processParagraph(index, element, inSrc, imageCounter, listCounters) {
   if (element.getNumChildren()==0) {
     return null;
   }
-  
+
   if (element.getType() === DocumentApp.ElementType.TABLE_OF_CONTENTS) {
     return {"text": "[[TOC]]"};
   }
-  
+
   var result = {};
 
   var pOut = "";
   var textElements = [];
   var imagePrefix = "image_";
-  
+
   for (var i=0; i<element.getNumChildren(); i++) {
     var t=element.getChild(i).getType();
     if (t === DocumentApp.ElementType.TEXT || t === DocumentApp.ElementType.TABLE_ROW) {
@@ -99,8 +99,8 @@ function processParagraph(index, element, inSrc, imageCounter, listCounters) {
       imageCounter++;
       textElements.push('![image alt text]('+name+')');
       result.images.push( {
-        "bytes": element.getChild(i).getBlob().getBytes(), 
-        "type": contentType, 
+        "bytes": element.getChild(i).getBlob().getBytes(),
+        "type": contentType,
         "name": name});
     } else if (t === DocumentApp.ElementType.PAGE_BREAK) {
       // ignore
@@ -116,8 +116,8 @@ function processParagraph(index, element, inSrc, imageCounter, listCounters) {
   if (textElements.length==0) {
     return result;
   }
-  
-  
+
+
   // process source code block:
   if (/^\s*---\s+source code\s*$/.test(pOut)) {
     result.source = "start";
@@ -134,7 +134,7 @@ function processParagraph(index, element, inSrc, imageCounter, listCounters) {
   } else {
 
     prefix = findPrefix(inSrc, element, listCounters);
-  
+
     var pOut = "";
     for (var i=0; i<textElements.length; i++) {
       pOut += processTextElement(inSrc, textElements[i]);
@@ -142,10 +142,10 @@ function processParagraph(index, element, inSrc, imageCounter, listCounters) {
 
     // replace Unicode quotation marks
     pOut = pOut.replace('\u201d', '"').replace('\u201c', '"');
- 
+
     result.text = prefix+pOut;
   }
-  
+
   return result;
 }
 
@@ -170,7 +170,7 @@ function findPrefix(inSrc, element, listCounters) {
         prefix += "    ";
       }
       var gt = listItem.getGlyphType();
-      if (gt === DocumentApp.GlyphType.BULLET || gt === DocumentApp.GlyphType.HOLLOW_BULLET || 
+      if (gt === DocumentApp.GlyphType.BULLET || gt === DocumentApp.GlyphType.HOLLOW_BULLET ||
           gt === DocumentApp.GlyphType.SQUARE_BULLET) {
         prefix += "* ";
       } else {
@@ -189,15 +189,15 @@ function processTextElement(inSrc, txt) {
   if (typeof(txt) === 'string') {
     return txt;
   }
-  
+
   var pOut = txt.getText();
   if (! txt.getTextAttributeIndices) {
     return pOut;
   }
-  
+
   var attrs=txt.getTextAttributeIndices();
   var lastOff=pOut.length;
-  
+
   for (var i=attrs.length-1; i>=0; i--) {
     var off=attrs[i];
     var url=txt.getLinkUrl(off);
