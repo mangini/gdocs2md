@@ -3,7 +3,7 @@ gdocsExporter
 
 A simple Google Apps script to convert a properly formatted Google Drive Document to the markdown (.md) format. This project was forked from Renato Mangini original [mangini/gdocs2md](https://github.com/mangini/gdocs2md) project.
 
-This version will soon be extend so that it may also:
+This version will soon be extended so that it may also:
 
  * export HTML
  * save exported files to a folder in your Google Drive
