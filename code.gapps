@@ -1,0 +1,10 @@
+// Add menu to select export option
+function onOpen() {
+  DocumentApp.getUi().createMenu('Export Document')
+      .addItem('Export to Markdown', 'exportDoc2Md')
+      .addToUi();
+}
+
+function exportDoc2Md() {
+  exportDoc('md');
+}
