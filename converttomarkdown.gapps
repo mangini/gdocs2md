@@ -4,12 +4,13 @@ function ConvertToMarkdown() {
   var inSrc = false;
   var inClass = false;
   var globalImageCounter = 0;
+  var globalListCounters = {};
   
   var attachments = [];
   
   for (var i=0; i<numChildren; i++) {
     var child = DocumentApp.getActiveDocument().getActiveSection().getChild(i);
-    var result = processParagraph(i, child, inSrc, globalImageCounter);
+    var result = processParagraph(i, child, inSrc, globalImageCounter, globalListCounters);
     globalImageCounter += (result && result.images) ? result.images.length : 0;
     if (result!==null) {
       if (result.source==="start" && !inSrc) {
@@ -27,7 +28,7 @@ function ConvertToMarkdown() {
       } else if (inClass) {
         text+=result.text+"\n\n";
       } else if (inSrc) {
-        text+=("    "+result.text+"\n");
+        text+=("    "+escapeHTML(result.text)+"\n");
       } else if (result.text && result.text.length>0) {
         text+=result.text+"\n\n";
       }
@@ -40,7 +41,10 @@ function ConvertToMarkdown() {
             "content": result.images[j].bytes } );
         }
       }
+    } else if (inSrc) { // support empty lines inside source code
+      text+='\n';
     }
+      
   }
   
   attachments.push({"fileName":DocumentApp.getActiveDocument().getName()+".md", "mimeType": "text/plain", "content": text});
@@ -52,7 +56,11 @@ function ConvertToMarkdown() {
                     { "attachments": attachments });
 }
 
-function processParagraph(index, element, inSrc, imageCounter) {
+function escapeHTML(text) {
+  return text.replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
+function processParagraph(index, element, inSrc, imageCounter, listCounters) {
   if (element.getNumChildren()==0) {
     return null;
   }
@@ -94,8 +102,14 @@ function processParagraph(index, element, inSrc, imageCounter) {
         "bytes": element.getChild(i).getBlob().getBytes(), 
         "type": contentType, 
         "name": name});
+    } else if (t === DocumentApp.ElementType.PAGE_BREAK) {
+      // ignore
+    } else if (t === DocumentApp.ElementType.HORIZONTAL_RULE) {
+      textElements.push('* * *\n');
+    } else if (t === DocumentApp.ElementType.FOOTNOTE) {
+      textElements.push(' (NOTE: '+element.getChild(i).getFootnoteContents().getText()+')');
     } else {
-      throw "Paragraph "+index+" of type "+element.getType()+" has an unsupported child: "+t+" "+element.getChild(i).getText()+" index="+index;
+      throw "Paragraph "+index+" of type "+element.getType()+" has an unsupported child: "+t+" "+(element.getChild(i)["getText"] ? element.getChild(i).getText():'')+" index="+index;
     }
   }
 
@@ -119,20 +133,23 @@ function processParagraph(index, element, inSrc, imageCounter) {
                   '"></iframe>';
   } else {
 
-    prefix = findPrefix(inSrc, element);
+    prefix = findPrefix(inSrc, element, listCounters);
   
     var pOut = "";
     for (var i=0; i<textElements.length; i++) {
       pOut += processTextElement(inSrc, textElements[i]);
     }
 
+    // replace Unicode quotation marks
+    pOut = pOut.replace('\u201d', '"').replace('\u201c', '"');
+ 
     result.text = prefix+pOut;
   }
   
   return result;
 }
 
-function findPrefix(inSrc, element) {
+function findPrefix(inSrc, element, listCounters) {
   var prefix="";
   if (!inSrc) {
     if (element.getType()===DocumentApp.ElementType.PARAGRAPH) {
@@ -157,7 +174,11 @@ function findPrefix(inSrc, element) {
           gt === DocumentApp.GlyphType.SQUARE_BULLET) {
         prefix += "* ";
       } else {
-        prefix += "1. ";
+        var key = listItem.getListId() + '.' + listItem.getNestingLevel();
+        var counter = listCounters[key] || 0;
+        counter++;
+        listCounters[key] = counter;
+        prefix += counter+". ";
       }
     }
   }
@@ -170,6 +191,9 @@ function processTextElement(inSrc, txt) {
   }
   
   var pOut = txt.getText();
+  if (! txt.getTextAttributeIndices) {
+    return pOut;
+  }
   
   var attrs=txt.getTextAttributeIndices();
   var lastOff=pOut.length;
@@ -195,6 +219,15 @@ function processTextElement(inSrc, txt) {
         }
         pOut=pOut.substring(0, off)+'`'+pOut.substring(off, lastOff)+'`'+pOut.substring(lastOff);
       }
+    }
+    if (txt.isBold(off)) {
+      var d1 = d2 = "**";
+      if (txt.isItalic(off)) {
+        d1 = "** *"; d2 = "* **";
+      }
+      pOut=pOut.substring(0, off)+d1+pOut.substring(off, lastOff)+d2+pOut.substring(lastOff);
+    } else if (txt.isItalic(off)) {
+      pOut=pOut.substring(0, off)+'*'+pOut.substring(off, lastOff)+'*'+pOut.substring(lastOff);
     }
     lastOff=off;
   }
