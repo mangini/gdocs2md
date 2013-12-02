@@ -273,15 +273,24 @@ function processTextElement(inSrc, txt) {
         pOut=pOut.substring(0, off)+'`'+pOut.substring(off, lastOff)+'`'+pOut.substring(lastOff);
       }
     }
-    if (txt.isBold(off)) {
-      var d1 = d2 = "**";
-      if (txt.isItalic(off)) {
-        // edbacher: changed this to handle bold italic properly.
-        d1 = "**_"; d2 = "_**";
+    if (txt.isBold(off) || txt.isItalic(off)) {
+      var d1 = d2 = "";
+      if (txt.isBold(off)) {
+        d1 = d2 = "**";
       }
-      pOut=pOut.substring(0, off)+d1+pOut.substring(off, lastOff)+d2+pOut.substring(lastOff);
-    } else if (txt.isItalic(off)) {
-      pOut=pOut.substring(0, off)+'*'+pOut.substring(off, lastOff)+'*'+pOut.substring(lastOff);
+      if (txt.isItalic(off)) {
+        d1 += "_"; d2 = "_"+d2;
+      }
+      var str = pOut.substring(off, lastOff);
+      while (str.length>0 && str[str.length-1] === ' ') {
+        str=str.slice(0, -1);
+        d2+=' ';
+      }
+      while (str.length>0 && str[0] === ' ') {
+        str=str.slice(1);
+        d1=' '+d1;
+      }
+      pOut=pOut.substring(0, off)+d1+str+d2+pOut.substring(lastOff);
     }
     lastOff=off;
   }
