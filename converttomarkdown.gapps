@@ -10,6 +10,12 @@ Usage:
     - Converted doc will be mailed to you. Subject will be "[MARKDOWN_MAKER]...".
 */
 
+function onOpen() {
+  DocumentApp.getUi().createMenu('Markdown')
+  .addItem('Email export', 'ConvertToMarkdown')
+  .addToUi();
+};
+
 function ConvertToMarkdown() {
   var numChildren = DocumentApp.getActiveDocument().getActiveSection().getNumChildren();
   var text = "";
