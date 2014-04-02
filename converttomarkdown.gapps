@@ -102,7 +102,7 @@ function processParagraph(index, element, inSrc, imageCounter, listCounters) {
   // Note that Markdown does not process within block-level HTML, so it probably 
   // doesn't make sense to add markup within tables.
   if (element.getType() === DocumentApp.ElementType.TABLE) {
-    textElements.push("<table>\n");
+    textElements.push("<table border=1>\n");
     var nCols = element.getChild(0).getNumCells();
     for (var i = 0; i < element.getNumChildren(); i++) {
       textElements.push("  <tr>\n");
@@ -140,7 +140,7 @@ function processParagraph(index, element, inSrc, imageCounter, listCounters) {
       }
       var name = imagePrefix + imageCounter + extension;
       imageCounter++;
-      textElements.push('![image alt text]('+name+')');
+      textElements.push('![]('+name+')');
       result.images.push( {
         "bytes": element.getChild(i).getBlob().getBytes(), 
         "type": contentType, 
@@ -273,15 +273,24 @@ function processTextElement(inSrc, txt) {
         pOut=pOut.substring(0, off)+'`'+pOut.substring(off, lastOff)+'`'+pOut.substring(lastOff);
       }
     }
-    if (txt.isBold(off)) {
-      var d1 = d2 = "**";
-      if (txt.isItalic(off)) {
-        // edbacher: changed this to handle bold italic properly.
-        d1 = "**_"; d2 = "_**";
+    if (txt.isBold(off) || txt.isItalic(off)) {
+      var d1 = d2 = "";
+      if (txt.isBold(off)) {
+        d1 = d2 = "**";
       }
-      pOut=pOut.substring(0, off)+d1+pOut.substring(off, lastOff)+d2+pOut.substring(lastOff);
-    } else if (txt.isItalic(off)) {
-      pOut=pOut.substring(0, off)+'*'+pOut.substring(off, lastOff)+'*'+pOut.substring(lastOff);
+      if (txt.isItalic(off)) {
+        d1 += "_"; d2 = "_"+d2;
+      }
+      var str = pOut.substring(off, lastOff);
+      while (str.length>0 && str[str.length-1] === ' ') {
+        str=str.slice(0, -1);
+        d2+=' ';
+      }
+      while (str.length>0 && str[0] === ' ') {
+        str=str.slice(1);
+        d1=' '+d1;
+      }
+      pOut=pOut.substring(0, off)+d1+str+d2+pOut.substring(lastOff);
     }
     lastOff=off;
   }
