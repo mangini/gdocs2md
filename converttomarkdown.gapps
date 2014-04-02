@@ -140,7 +140,7 @@ function processParagraph(index, element, inSrc, imageCounter, listCounters) {
       }
       var name = imagePrefix + imageCounter + extension;
       imageCounter++;
-      textElements.push('![image alt text]('+name+')');
+      textElements.push('![]('+name+')');
       result.images.push( {
         "bytes": element.getChild(i).getBlob().getBytes(), 
         "type": contentType, 
