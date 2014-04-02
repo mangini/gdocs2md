@@ -102,7 +102,7 @@ function processParagraph(index, element, inSrc, imageCounter, listCounters) {
   // Note that Markdown does not process within block-level HTML, so it probably 
   // doesn't make sense to add markup within tables.
   if (element.getType() === DocumentApp.ElementType.TABLE) {
-    textElements.push("<table>\n");
+    textElements.push("<table border=1>\n");
     var nCols = element.getChild(0).getNumCells();
     for (var i = 0; i < element.getNumChildren(); i++) {
       textElements.push("  <tr>\n");
