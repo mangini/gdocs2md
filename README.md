@@ -48,6 +48,7 @@ A simple Google Apps script to convert a properly formatted Google Drive Documen
 
 * Renato Mangini - [G+](//google.com/+renatomangini) - [Github](//github.com/mangini)
 * Ed Bacher - [G+](//plus.google.com/106923847899206957842) - [Github](//github.com/evbacher)
+* Andreas Wolke - [G+](//plus.google.com/+AndreasWolke) - [Github](//github.com/jacksonicson)
 
 ## LICENSE
 
