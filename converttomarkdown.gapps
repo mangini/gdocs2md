@@ -227,7 +227,7 @@ function handleEquationFunction(func) {
     var child = func.getChild(i); 
     
     if(child.getType() == DocumentApp.ElementType.EQUATION_FUNCTION) {
-      equation = child.getCode() + "{" + handleEquationFunction(child); 
+      equation += child.getCode() + "{" + handleEquationFunction(child); 
     }
     else if(child.getType() == DocumentApp.ElementType.EQUATION_FUNCTION_ARGUMENT_SEPARATOR) {
       equation = equation.trim() + "}{"; 
