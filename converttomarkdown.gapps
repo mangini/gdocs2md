@@ -10,6 +10,33 @@ Usage:
     - Converted doc will be mailed to you. Subject will be "[MARKDOWN_MAKER]...".
 */
 
+// Open handler to add Menu
+function onOpen() {
+  var ui = DocumentApp.getUi();
+  ui.createMenu('Markdown')
+      .addItem('Document', 'ConvertToMarkdown')
+      .addItem('Equation', 'ConvertEquation')
+      .addToUi();
+}
+
+function ConvertEquation() {
+  var element = DocumentApp.getActiveDocument().getCursor().getElement();
+  element = element.getParent();
+  
+  if(element.getType() != DocumentApp.ElementType.EQUATION) {
+    DocumentApp.getUi().alert("Put cursor into an equation element!"); 
+    return; 
+  }
+  
+  // Covert equation
+  var latexEquation = handleEquationFunction(element); 
+  var latexEquationText = "$" + latexEquation.trim() + "$"; 
+  
+  // Show results
+  DocumentApp.getUi().alert(latexEquationText);
+}
+
+// Covert current document to markdown
 function ConvertToMarkdown() {
   var numChildren = DocumentApp.getActiveDocument().getActiveSection().getNumChildren();
   var text = "";
@@ -17,10 +44,12 @@ function ConvertToMarkdown() {
   var inClass = false;
   var globalImageCounter = 0;
   var globalListCounters = {};
+  
   // edbacher: added a variable for indent in src <pre> block. Let style sheet do margin.
   var srcIndent = "";
   
   var attachments = [];
+  var files = []; 
   
   // Walk through all the child elements of the doc.
   for (var i = 0; i < numChildren; i++) {
@@ -54,12 +83,19 @@ function ConvertToMarkdown() {
         text+=result.text+"\n\n";
       }
       
+      
       if (result.images && result.images.length>0) {
         for (var j=0; j<result.images.length; j++) {
           attachments.push( {
             "fileName": result.images[j].name,
             "mimeType": result.images[j].type,
-            "content": result.images[j].bytes } );
+            "content": result.images[j].bytes
+          } );
+          
+          files.push( {
+            "name" : result.images[j].name,
+            "blob" : result.images[j].blob
+          });
         }
       }
     } else if (inSrc) { // support empty lines inside source code
@@ -68,22 +104,107 @@ function ConvertToMarkdown() {
       
   }
   
-  // Add markdown document to attachments
-  attachments.push({"fileName":DocumentApp.getActiveDocument().getName()+".md", "mimeType": "text/plain", "content": text});
+  // Create folder
+  var id = DocumentApp.getActiveDocument().getId();
+  var file = DocsList.getFileById(id);
+  var parents = file.getParents();
   
-  // Log output for debugging
+  if(parents.length > 1)
+  {
+    Logger.log("File has multiple parent directory. Script does not work in this case"); 
+    return null; 
+  }
+  
+  var parent = parents[0];
+  
+  // Check if target folder exists  
+  for(var folder in parent.getFolders()) {
+    folder = parent.getFolders()[folder]; 
+    
+    if(folder.getName() == 'target') {
+      Logger.log("Trashing target folder..."); 
+      folder.setTrashed(true); 
+      break; 
+    }
+  }
+  
+  // Create new target folder if none exists
+  Logger.log("Creating output folder..."); 
+  var found = parent.createFolder("target"); 
+  
+  // Write all files to target folder
+  for(var file in files) {
+    file = files[file];
+    var blob = file.blob.copyBlob();
+    var name = file.name; 
+    blob.setName(name); 
+    found.createFile(blob); 
+  }
+  
+  // Write mardown file to target folder
+  found.createFile(DocumentApp.getActiveDocument().getName() + ".md", text, "text/plain"); 
+  
+  // Debug logging
   Logger.log(text);
-   
-  // Send email with markdown document
-  MailApp.sendEmail(Session.getActiveUser().getEmail(), 
-                    "[MARKDOWN_MAKER] "+DocumentApp.getActiveDocument().getName(), 
-                    "Your converted markdown document is attached (converted from "+DocumentApp.getActiveDocument().getUrl()+")"+
-                    "\n\nDon't know how to use the format options? See http://github.com/mangini/gdocs2md\n",
-                    { "attachments": attachments });
 }
 
 function escapeHTML(text) {
   return text.replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
+function processTable(element, textElements) {
+  String.prototype.repeat = function( num )
+  {
+    return new Array( num + 1 ).join( this );
+  }
+  
+  textElements.push("\n");
+  
+  function buildTable(size) {
+    var stack = []
+    var maxSize = 0; 
+    
+    for(var ir=0; ir<element.getNumRows(); ir++) {
+      var row = element.getRow(ir);
+      
+      // Add header seperator
+      if(ir == 1) {
+        for(var ic=0; ic<row.getNumCells(); ic++) {
+          stack.push("|=" + "=".repeat(size));
+        }
+        stack.push("=|\n");
+      }
+      
+      // Add table data
+      for(var ic=0; ic<row.getNumCells(); ic++) {
+        var cell = row.getCell(ic);
+        var text = cell.getText(); 
+        text = text.replace(/(\r\n|\n|\r)/gm,"");
+        maxSize = Math.max(text.length, maxSize); 
+        
+        if(size > text.length) {
+          text += " ".repeat(size - text.length)
+        }
+        
+        stack.push("| " + text);
+      }
+      
+      stack.push(" |\n");
+    }
+    
+    stack.push("\n");
+    return {
+      maxSize : maxSize,
+      stack : stack,
+    };
+  }
+  
+  var table = buildTable(100); 
+  table = buildTable(Math.max(10, table.maxSize + 1)); 
+  textElements = textElements.concat(table.stack);
+  
+  textElements.push("\n");
+  return textElements;
 }
 
 // Process each child element (not just paragraphs).
@@ -103,21 +224,8 @@ function processParagraph(index, element, inSrc, imageCounter, listCounters) {
   var textElements = [];
   var imagePrefix = "image_";
   
-  // Handle Table elements. Pretty simple-minded now, but works for simple tables.
-  // Note that Markdown does not process within block-level HTML, so it probably 
-  // doesn't make sense to add markup within tables.
   if (element.getType() === DocumentApp.ElementType.TABLE) {
-    textElements.push("<table>\n");
-    var nCols = element.getChild(0).getNumCells();
-    for (var i = 0; i < element.getNumChildren(); i++) {
-      textElements.push("  <tr>\n");
-      // process this row
-      for (var j = 0; j < nCols; j++) {
-        textElements.push("    <td>" + element.getChild(i).getChild(j).getText() + "</td>\n");
-      }
-      textElements.push("  </tr>\n");
-    }
-    textElements.push("</table>\n");
+    textElements = processTable(element, textElements);
   }
   
   // Process various types (ElementType).
@@ -148,6 +256,7 @@ function processParagraph(index, element, inSrc, imageCounter, listCounters) {
       textElements.push('![image alt text]('+name+')');
       result.images.push( {
         "bytes": element.getChild(i).getBlob().getBytes(), 
+        "blob": element.getChild(i).getBlob(), 
         "type": contentType, 
         "name": name});
     } else if (t === DocumentApp.ElementType.PAGE_BREAK) {
@@ -162,7 +271,7 @@ function processParagraph(index, element, inSrc, imageCounter, listCounters) {
       var latexEquation = handleEquationFunction(equation); 
 
       // Add equation marker
-      latexEquation = "$" + latexEquation.trim() + "$"; 
+      latexEquation = "$$" + latexEquation.trim() + "$$"; 
             
       // Put equation onto stack
       textElements.push(latexEquation);
@@ -222,12 +331,14 @@ function latexSanitize(text) {
 
 // Converte an Equation or Function element to a Latex expression
 function handleEquationFunction(func) {
+  Logger.log("Equation converter handling: " + func.getType());
   var equation =  ""; 
+  
   for(var i=0; i<func.getNumChildren(); i++) {
     var child = func.getChild(i); 
     
     if(child.getType() == DocumentApp.ElementType.EQUATION_FUNCTION) {
-      equation = child.getCode() + "{" + handleEquationFunction(child); 
+      equation += child.getCode() + "{" + handleEquationFunction(child); 
     }
     else if(child.getType() == DocumentApp.ElementType.EQUATION_FUNCTION_ARGUMENT_SEPARATOR) {
       equation = equation.trim() + "}{"; 
@@ -243,6 +354,7 @@ function handleEquationFunction(func) {
   if(func.getType() == DocumentApp.ElementType.EQUATION_FUNCTION)
     equation = equation.trim() + "}";
   
+  Logger.log("Equation converter result: " + equation);
   return equation;
 }
 
