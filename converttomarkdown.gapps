@@ -21,7 +21,14 @@ function onOpen() {
 
 function ConvertEquation() {
   var element = DocumentApp.getActiveDocument().getCursor().getElement();
-  element = element.getParent();
+  
+  // Scan upwards for an equation
+  while(element.getType() != DocumentApp.ElementType.EQUATION) {
+    if(element.getParent() == null)
+      break;
+    
+    element = element.getParent();  
+  }
   
   if(element.getType() != DocumentApp.ElementType.EQUATION) {
     DocumentApp.getUi().alert("Put cursor into an equation element!"); 
