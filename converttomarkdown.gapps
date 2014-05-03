@@ -68,8 +68,13 @@ function ConvertToMarkdown() {
       
   }
   
+  // Add markdown document to attachments
   attachments.push({"fileName":DocumentApp.getActiveDocument().getName()+".md", "mimeType": "text/plain", "content": text});
   
+  // Log output for debugging
+  Logger.log(text);
+   
+  // Send email with markdown document
   MailApp.sendEmail(Session.getActiveUser().getEmail(), 
                     "[MARKDOWN_MAKER] "+DocumentApp.getActiveDocument().getName(), 
                     "Your converted markdown document is attached (converted from "+DocumentApp.getActiveDocument().getUrl()+")"+
@@ -151,6 +156,17 @@ function processParagraph(index, element, inSrc, imageCounter, listCounters) {
       textElements.push('* * *\n');
     } else if (t === DocumentApp.ElementType.FOOTNOTE) {
       textElements.push(' (NOTE: '+element.getChild(i).getFootnoteContents().getText()+')');
+    } else if (t == DocumentApp.ElementType.EQUATION) {
+      // Convert equation to Latex equation string
+      var equation = element.getChild(i); 
+      var latexEquation = handleEquationFunction(equation); 
+
+      // Add equation marker
+      latexEquation = "$" + latexEquation.trim() + "$"; 
+            
+      // Put equation onto stack
+      textElements.push(latexEquation);
+      
     } else {
       throw "Paragraph "+index+" of type "+element.getType()+" has an unsupported child: "
       +t+" "+(element.getChild(i)["getText"] ? element.getChild(i).getText():'')+" index="+index;
@@ -195,6 +211,39 @@ function processParagraph(index, element, inSrc, imageCounter, listCounters) {
   }
   
   return result;
+}
+
+// Escape chars with a special meaning in Latex
+function latexSanitize(text) {
+  text = text.replace("\\", "\\\\"); 
+  text = text.replace("%", "\\%");
+  return text; 
+}
+
+// Converte an Equation or Function element to a Latex expression
+function handleEquationFunction(func) {
+  var equation =  ""; 
+  for(var i=0; i<func.getNumChildren(); i++) {
+    var child = func.getChild(i); 
+    
+    if(child.getType() == DocumentApp.ElementType.EQUATION_FUNCTION) {
+      equation = child.getCode() + "{" + handleEquationFunction(child); 
+    }
+    else if(child.getType() == DocumentApp.ElementType.EQUATION_FUNCTION_ARGUMENT_SEPARATOR) {
+      equation = equation.trim() + "}{"; 
+    }
+    else if(child.getType() == DocumentApp.ElementType.EQUATION_SYMBOL) {
+      equation += child.getCode() + " "; 
+    }
+    else if(child.getType() == DocumentApp.ElementType.TEXT) {
+      equation += latexSanitize(child.getText()) + " "; 
+    }
+  }
+  
+  if(func.getType() == DocumentApp.ElementType.EQUATION_FUNCTION)
+    equation = equation.trim() + "}";
+  
+  return equation;
 }
 
 // Add correct prefix to list items.

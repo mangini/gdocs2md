@@ -30,6 +30,8 @@ A simple Google Apps script to convert a properly formatted Google Drive Documen
     * bullet lists are converted to "`*`" Markdown format appropriately, including nested lists
   * Images:
     * images are correctly extracted and sent as attachments
+  * Equations:
+    * Equations are converted to LaTex equation strings and surrounded by ``$`` signs 
   * Blocks:
     * Table of contents is replaced by `[[TOC]]`
     * blocks of text delimited by "--- class whateverclassnameyouwant" and "---" are converted to `<div class="whateverclassnameyouwant"></div>` 
