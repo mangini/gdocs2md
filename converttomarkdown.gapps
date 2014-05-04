@@ -86,6 +86,8 @@ function ConvertToMarkdown() {
         text+=result.text+"\n\n";
       } else if (inSrc) {
         text+=(srcIndent+escapeHTML(result.text)+"\n");
+      } else if(result.text && result.text.length>0 && result.singleLb) {
+        text+=result.text+"\n";
       } else if (result.text && result.text.length>0) {
         text+=result.text+"\n\n";
       }
@@ -220,21 +222,25 @@ function processParagraph(index, element, inSrc, imageCounter, listCounters) {
   if (element.getNumChildren()==0) {
     return null;
   }  
+  
   // Punt on TOC.
   if (element.getType() === DocumentApp.ElementType.TABLE_OF_CONTENTS) {
     return {"text": "[[TOC]]"};
   }
   
   // Set up for real results.
-  var result = {};
+  var result = {
+    'singleLb' : false,
+  };
   var pOut = "";
   var textElements = [];
   var imagePrefix = "image_";
-  
+    
+  // Handle tables
   if (element.getType() === DocumentApp.ElementType.TABLE) {
     textElements = processTable(element, textElements);
   }
-  
+    
   // Process various types (ElementType).
   for (var i = 0; i < element.getNumChildren(); i++) {
     var t=element.getChild(i).getType();
@@ -312,9 +318,15 @@ function processParagraph(index, element, inSrc, imageCounter, listCounters) {
                   'src="http://www.html5rocks.com/static/jsperfview/embed.html?id='+RegExp.$1+
                   '"></iframe>';
   } else {
-
-    prefix = findPrefix(inSrc, element, listCounters);
+    // Prefix for headlines and lists
+    prefix = findPrefix(index, inSrc, element, listCounters);
+    var singleLb = prefix.singleLb;
+    prefix = prefix.prefix;
   
+    Logger.log("single lb: " + singleLb); 
+    result.singleLb = singleLb;
+    
+    // Join all text elements and add formatting
     var pOut = "";
     for (var i=0; i<textElements.length; i++) {
       pOut += processTextElement(inSrc, textElements[i]);
@@ -366,8 +378,9 @@ function handleEquationFunction(func) {
 }
 
 // Add correct prefix to list items.
-function findPrefix(inSrc, element, listCounters) {
+function findPrefix(index, inSrc, element, listCounters) {
   var prefix="";
+  var singleLineBreak = false; 
   if (!inSrc) {
     if (element.getType()===DocumentApp.ElementType.PARAGRAPH) {
       var paragraphObj = element;
@@ -385,7 +398,7 @@ function findPrefix(inSrc, element, listCounters) {
       var listItem = element;
       var nesting = listItem.getNestingLevel()
       for (var i=0; i<nesting; i++) {
-        prefix += "    ";
+        prefix += "  ";
       }
       var gt = listItem.getGlyphType();
       // Bullet list (<ul>):
@@ -401,9 +414,23 @@ function findPrefix(inSrc, element, listCounters) {
         listCounters[key] = counter;
         prefix += counter+". ";
       }
+      
+      // Check if this item is followed by another list item
+      var num = DocumentApp.getActiveDocument().getActiveSection().getNumChildren();
+      if(index + 1 < num) {
+        var next = DocumentApp.getActiveDocument().getActiveSection().getChild(index + 1);
+        if(next.getType() == DocumentApp.ElementType.LIST_ITEM) {
+          singleLineBreak = true; 
+        }
+      }
+      
     }
   }
-  return prefix;
+  
+  return {
+    'prefix' : prefix,
+    'singleLb' : singleLineBreak
+  };
 }
 
 function processTextElement(inSrc, txt) {
