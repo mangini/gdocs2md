@@ -67,7 +67,7 @@ function ConvertToMarkdownEmail() {
 // Convert current document to file and save it to GDrive
 function ConvertToMarkdownFile() {
   // Convert to markdwon
-  var convertedDoc = ConvertToMarkdown(); 
+  var convertedDoc = markdown(); 
   
   // Create folder
   var id = DocumentApp.getActiveDocument().getId();
@@ -109,6 +109,51 @@ function ConvertToMarkdownFile() {
   
   // Write mardown file to target folder
   found.createFile(DocumentApp.getActiveDocument().getName() + ".md", convertedDoc.text, "text/plain");   
+}
+
+function markdown() {
+  var doc = DocumentApp.getActiveDocument().getActiveSection();
+  
+  var state = {
+    'inSource' : false,
+    'images' : [],
+    'imageCounter' : 0,
+    'prevDoc' : [],
+    'nextDoc' : [],
+  };
+  var textElements = processDocument(doc, state, 0);
+  var text = textElements.join('');
+  
+  // Replace critical chars
+  text = text.replace('\u201d', '"').replace('\u201c', '"');
+  
+  // Debug logging
+  Logger.log("Result: " + text);
+  Logger.log("Images: " + state.imageCounter);
+  
+  // Build attachment and file lists
+  var attachments = [];
+  var files = [];
+  for(var i in state.images) {
+    var image = state.images[i];
+    attachments.push( {
+      "fileName": image.name,
+      "mimeType": image.type,
+      "content": image.bytes
+    } );
+    
+    files.push( {
+      "name" : image.name,
+      "blob" : image.blob
+    });
+  }
+  
+  // Results
+  return {
+    'files' : files,
+    'attachments' : attachments,
+    'text' : text,
+  };
 }
 
 // Covert current document to markdown
@@ -195,7 +240,9 @@ function escapeHTML(text) {
   return text.replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }
 
-function processTable(element, textElements) {
+function processTable(element) {
+  var textElements = [];
+  
   String.prototype.repeat = function( num )
   {
     return new Array( num + 1 ).join( this );
@@ -248,6 +295,238 @@ function processTable(element, textElements) {
   
   textElements.push("\n");
   return textElements;
+}
+
+
+function handleText(doc, state) {
+  var formatted = doc.getText(); 
+  var lastIndex = formatted.length; 
+  var attrs = doc.getTextAttributeIndices();
+  
+  // Iterate backwards through all attributes
+  for(var i=attrs.length-1; i >= 0; i--) {
+    // Current position in text
+    var index = attrs[i];
+        
+    // Handle links
+    if(doc.getLinkUrl(index)) {
+      var url = doc.getLinkUrl(index);
+      if (i > 0 && attrs[i-1] == index - 1 && doc.getLinkUrl(attrs[i-1]) === url) {
+        i -= 1;
+        index = attrs[i];
+        url = txt.getLinkUrl(off);
+      }
+      formatted = formatted.substring(0, index) + '[' + formatted.substring(index, lastIndex) + '](' + url + ')' + formatted.substring(lastIndex);
+    } 
+    
+    // Handle font family
+    if(doc.getFontFamily(index)) {
+      var font = doc.getFontFamily(index); 
+      var sourceFont = font.COURIER_NEW; 
+      
+      if (!state.inSource && font === sourceFont) {
+        // Scan left until text without source font is found
+        while (i > 0 && txt.getFontFamily(attrs[i-1]) && txt.getFontFamily(attrs[i-1]) === sourceFont) {
+          i -= 1;
+          off = attrs[i];
+        }
+        
+        formatted = formatted.substring(0, lastIndex) + '`' + formatted.substring(index, lastIndex) + '`' + formatted.substring(lastIndex);
+      }
+    }
+    
+    // Handle bold and bold italic
+    if(doc.isBold(index)) {
+      var dleft, right;
+      dleft = dright = "**";
+      if (doc.isItalic(index)) 
+      {
+        // edbacher: changed this to handle bold italic properly.
+        dleft = "**_"; 
+        dright  = "_**";
+      }
+      formatted = formatted.substring(0, index) + dleft + formatted.substring(index, lastIndex) + dright + formatted.substring(lastIndex);
+      
+    } 
+    // Handle italic
+    else if(doc.isItalic(index)) {
+      formatted = formatted.substring(0, index) + '*' + formatted.substring(index, lastIndex) + '*' + formatted.substring(lastIndex);
+    }
+    
+    // Keep track of last position in text
+    lastIndex = index; 
+  }
+  
+  var textElements = [formatted]; 
+  return textElements; 
+}
+
+
+
+function handleListItem(item, state, depth) {
+  var textElements = [];
+  
+  // Prefix
+  var prefix = '';
+  
+  // Add nesting level
+  for (var i=0; i<item.getNestingLevel(); i++) {
+    prefix += '  ';
+  }
+  
+  // Add marker based on glyph type
+  var glyph = item.getGlyphType();
+  switch(glyph) {
+    case DocumentApp.GlyphType.BULLET:
+    case DocumentApp.GlyphType.HOLLOW_BULLET:
+    case DocumentApp.GlyphType.SQUARE_BULLET: 
+      prefix += '* ';
+      break; 
+    default:
+      var key = item.getListId() + '.' + item.getNestingLevel();
+      var counter = state.listCounters[key] || 0;
+      counter++;
+      state.listCounters[key] = counter;
+      prefix += counter + '. ';
+  }
+  
+  // Add prefix
+  textElements.push(prefix);
+  
+  // Handle all childs
+  textElements = textElements.concat(processChilds(item, state, depth));
+  
+  return textElements;
+}
+
+function handleImage(image, state) {
+  // Determine file extension based on content type
+  var contentType = image.getBlob().getContentType();
+  var fileExtension = '';
+  if (/\/png$/.test(contentType)) {
+    fileExtension = ".png";
+  } else if (/\/gif$/.test(contentType)) {
+    fileExtension = ".gif";
+  } else if (/\/jpe?g$/.test(contentType)) {
+    fileExtension = ".jpg";
+  } else {
+    throw "Unsupported image type: " + contentType;
+  }
+
+  // Create filename
+  var filename = 'img_' + state.imageCounter + fileExtension;
+  state.imageCounter++;
+  
+  // Add image
+  var textElements = []
+  textElements.push('![image alt text](' + filename + ')');
+  state.images.push( {
+    "bytes": image.getBlob().getBytes(), 
+    "blob": image.getBlob(), 
+    "type": contentType, 
+    "name": filename,
+  });
+  
+  return textElements;
+}
+
+function processChilds(doc, state, depth) {
+  var textElements = []
+  for(var i=0; i < doc.getNumChildren(); i++)  {
+    var child = doc.getChild(i); 
+    state.nextDoc[depth] = (i+1 < doc.getNumChildren())?doc.getChild(i+1) : child;
+    textElements = textElements.concat(processDocument(child, state, depth+1)); 
+  }
+  return textElements;
+}
+
+function processDocument(doc, state, depth) {
+  //Logger.log("Processing document: " + doc); 
+  //Logger.log("State: " + state); 
+  
+  var prevDoc = state.prevDoc[depth] || doc; 
+  state.prevDoc[depth] = doc; 
+  
+  // Result
+  var textElements = [];
+    
+  switch(doc.getType()) {
+    case DocumentApp.ElementType.BODY_SECTION: 
+      textElements = textElements.concat(processChilds(doc, state, depth));
+      break; 
+      
+    case DocumentApp.ElementType.PARAGRAPH:
+      // Determine header prefix
+      var prefix = ''; 
+      switch (doc.getHeading()) {
+        // Add a # for each heading level. No break, so we accumulate the right number.
+        case DocumentApp.ParagraphHeading.HEADING6: prefix += '#';
+        case DocumentApp.ParagraphHeading.HEADING5: prefix += '#';
+        case DocumentApp.ParagraphHeading.HEADING4: prefix += '#';
+        case DocumentApp.ParagraphHeading.HEADING3: prefix += '#';
+        case DocumentApp.ParagraphHeading.HEADING2: prefix += '#';
+        case DocumentApp.ParagraphHeading.HEADING1: prefix += '#';
+      }
+      
+      // Add space
+      if(prefix.length > 0)
+        prefix += ' ';
+      
+      // Push prefix
+      textElements.push(prefix);
+      
+      // Process childs
+      textElements = textElements.concat(processChilds(doc, state, depth));
+      
+      // Add paragraph break
+      textElements.push('\n\n');
+      break; 
+      
+    case DocumentApp.ElementType.LIST_ITEM:
+      textElements = textElements.concat(handleListItem(doc, state, depth)); 
+      textElements.push('\n');
+      
+      if(state.nextDoc[depth-1].getType() != doc.getType()) {
+        textElements.push('\n');
+      }
+      
+      break;
+      
+    case DocumentApp.ElementType.HORIZONTAL_RULE:
+      textElements.push('* * *\n');
+      break; 
+     
+    case DocumentApp.ElementType.FOOTNOTE:
+      textElements.push(' (NOTE: ' + doc.getText() + ')');
+      break;
+      
+    case DocumentApp.ElementType.TABLE:
+      textElements = textElements.concat(processTable(doc));
+      break;
+      
+    case DocumentApp.ElementType.TABLE_OF_CONTENTS:
+      textElements.push('[[TOC]]');
+      break;
+      
+    case DocumentApp.ElementType.TEXT:
+      var text = handleText(doc, state);
+      textElements = textElements.concat(text);
+      break;
+      
+    case DocumentApp.ElementType.INLINE_IMAGE: 
+      textElements = textElements.concat(handleImage(doc, state));
+      break; 
+      
+    case DocumentApp.ElementType.EQUATION: 
+      var latexEquation = handleEquationFunction(doc, state); 
+      latexEquation = "$$" + latexEquation.trim() + "$$"; 
+      textElements.push(latexEquation);
+      break; 
+    default:
+      throw("Unknown element type: " + doc.getType());
+  }
+  
+  return textElements; 
 }
 
 // Process each child element (not just paragraphs).
@@ -375,6 +654,21 @@ function processParagraph(index, element, inSrc, imageCounter, listCounters) {
   return result;
 }
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 // Escape chars with a special meaning in Latex
 function latexSanitize(text) {
   text = text.replace("\\", "\\\\"); 
@@ -383,15 +677,15 @@ function latexSanitize(text) {
 }
 
 // Converte an Equation or Function element to a Latex expression
-function handleEquationFunction(func) {
-  Logger.log("Equation converter handling: " + func.getType());
+function handleEquationFunction(func, state) {
+  //Logger.log("Equation converter handling: " + func.getType());
   var equation =  ""; 
   
   for(var i=0; i<func.getNumChildren(); i++) {
     var child = func.getChild(i); 
     
     if(child.getType() == DocumentApp.ElementType.EQUATION_FUNCTION) {
-      equation += child.getCode() + "{" + handleEquationFunction(child); 
+      equation += child.getCode() + "{" + handleEquationFunction(child, state); 
     }
     else if(child.getType() == DocumentApp.ElementType.EQUATION_FUNCTION_ARGUMENT_SEPARATOR) {
       equation = equation.trim() + "}{"; 
@@ -407,7 +701,7 @@ function handleEquationFunction(func) {
   if(func.getType() == DocumentApp.ElementType.EQUATION_FUNCTION)
     equation = equation.trim() + "}";
   
-  Logger.log("Equation converter result: " + equation);
+  //Logger.log("Equation converter result: " + equation);
   return equation;
 }
 
