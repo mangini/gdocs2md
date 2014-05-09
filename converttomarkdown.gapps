@@ -213,9 +213,9 @@ function processTable(element, textElements) {
       // Add header seperator
       if(ir == 1) {
         for(var ic=0; ic<row.getNumCells(); ic++) {
-          stack.push("|=" + "=".repeat(size));
+          stack.push("|-" + "-".repeat(size));
         }
-        stack.push("=|\n");
+        stack.push("-|\n");
       }
       
       // Add table data
