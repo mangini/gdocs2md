@@ -13,10 +13,7 @@ A simple Google Apps script to convert a properly formatted Google Drive Documen
     * File -> Save
     
   * Running the script (run as many times as you want):
-    - Tools > Script Manager
-    - Select "ConvertToMarkdown" function.
-    - Click Run button (First run will require you to authorize it. Authorize and run again)
-    - Converted doc with images attached will be emailed to you. Subject will be "[MARKDOWN_MAKER]...".
+    - Export > Markdown email
 
 
 ## Interpreted formats
