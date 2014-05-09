@@ -13,8 +13,9 @@ Usage:
 // Open handler to add Menu
 function onOpen() {
   var ui = DocumentApp.getUi();
-  ui.createMenu('Markdown')
-      .addItem('Document', 'ConvertToMarkdown')
+  ui.createMenu('Export MD')
+      .addItem('File', 'ConvertToMarkdownFile')
+      .addItem('Email', 'ConvertToMarkdownEmail')
       .addItem('Equation', 'ConvertEquation')
       .addToUi();
 }
@@ -41,6 +42,71 @@ function ConvertEquation() {
   
   // Show results
   DocumentApp.getUi().alert(latexEquationText);
+}
+
+// Convert current document to markdown and email it 
+function ConvertToMarkdownEmail() {
+  // Convert to markdown
+  var convertedDoc = ConvertToMarkdown(); 
+  
+  // Add markdown document to attachments
+  convertedDoc.attachments.push({"fileName":DocumentApp.getActiveDocument().getName()+".md", 
+                                 "mimeType": "text/plain", "content": convertedDoc.text});
+  
+  
+  // Send email with markdown document
+  MailApp.sendEmail(Session.getActiveUser().getEmail(),
+					"[MARKDOWN_MAKER] "+DocumentApp.getActiveDocument().getName(),
+					"Your converted markdown document is attached (converted from "+DocumentApp.getActiveDocument().getUrl()+")"+
+					"\n\nDon't know how to use the format options? See http://github.com/mangini/gdocs2md\n",
+					{ "attachments": convertedDoc.attachments });
+}
+
+// Convert current document to file and save it to GDrive
+function ConvertToMarkdownFile() {
+  // Convert to markdwon
+  var convertedDoc = ConvertToMarkdown(); 
+  
+  // Create folder
+  var id = DocumentApp.getActiveDocument().getId();
+  var file = DocsList.getFileById(id);
+  var parents = file.getParents();
+  
+  if(parents.length > 1)
+  {
+    Logger.log("File has multiple parent directory. Script does not work in this case"); 
+    return null; 
+  }
+  
+  // Use first parent
+  var parent = parents[0];
+  
+  // Check if target folder exists  
+  for(var folder in parent.getFolders()) {
+    folder = parent.getFolders()[folder]; 
+    
+    if(folder.getName() == 'target') {
+      Logger.log("Trashing target folder..."); 
+      folder.setTrashed(true); 
+      break; 
+    }
+  }
+  
+  // Create new target folder if none exists
+  Logger.log("Creating output folder..."); 
+  var found = parent.createFolder("target"); 
+  
+  // Write all files to target folder
+  for(var file in convertedDoc.files) {
+    file = convertedDoc.files[file];
+    var blob = file.blob.copyBlob();
+    var name = file.name; 
+    blob.setName(name); 
+    found.createFile(blob); 
+  }
+  
+  // Write mardown file to target folder
+  found.createFile(DocumentApp.getActiveDocument().getName() + ".md", convertedDoc.text, "text/plain");   
 }
 
 // Covert current document to markdown
@@ -113,48 +179,14 @@ function ConvertToMarkdown() {
       
   }
   
-  // Create folder
-  var id = DocumentApp.getActiveDocument().getId();
-  var file = DocsList.getFileById(id);
-  var parents = file.getParents();
-  
-  if(parents.length > 1)
-  {
-    Logger.log("File has multiple parent directory. Script does not work in this case"); 
-    return null; 
-  }
-  
-  var parent = parents[0];
-  
-  // Check if target folder exists  
-  for(var folder in parent.getFolders()) {
-    folder = parent.getFolders()[folder]; 
-    
-    if(folder.getName() == 'target') {
-      Logger.log("Trashing target folder..."); 
-      folder.setTrashed(true); 
-      break; 
-    }
-  }
-  
-  // Create new target folder if none exists
-  Logger.log("Creating output folder..."); 
-  var found = parent.createFolder("target"); 
-  
-  // Write all files to target folder
-  for(var file in files) {
-    file = files[file];
-    var blob = file.blob.copyBlob();
-    var name = file.name; 
-    blob.setName(name); 
-    found.createFile(blob); 
-  }
-  
-  // Write mardown file to target folder
-  found.createFile(DocumentApp.getActiveDocument().getName() + ".md", text, "text/plain"); 
-  
   // Debug logging
   Logger.log(text);
+  
+  return {
+    'files' : files,
+    'attachments' : attachments,
+    'text' : text
+  }; 
 }
 
 function escapeHTML(text) {
