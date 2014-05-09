@@ -13,11 +13,13 @@ Usage:
 // Open handler to add Menu
 function onOpen() {
   var ui = DocumentApp.getUi();
-  ui.createMenu('Export MD')
-      .addItem('File', 'ConvertToMarkdownFile')
-      .addItem('Email', 'ConvertToMarkdownEmail')
-      .addItem('Equation', 'ConvertEquation')
+  ui.createMenu('Export')
+      .addItem('Markdown file', 'ConvertToMarkdownFile')
+      .addItem('Markdown email', 'ConvertToMarkdownEmail')
+      .addItem('Latex equation', 'ConvertEquation')
       .addToUi();
+  
+  DocumentApp.getActiveDocument().add
 }
 
 function ConvertEquation() {
