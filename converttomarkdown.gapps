@@ -117,6 +117,7 @@ function processSection(section) {
     'imageCounter' : 0,
     'prevDoc' : [],
     'nextDoc' : [],
+    'inSource' : false,
   };
   var textElements = processElement(section, state, 0);
   return {
@@ -479,8 +480,14 @@ function processElement(element, state, depth) {
       textElements = textElements.concat(processChilds(element, state, depth));
       
       // Add paragraph break only if its not the last element on this layer
-      if(state.nextDoc[depth-1] != element)
+      if(state.nextDoc[depth-1] == element)
+        break; 
+      
+      if(state.inSource)
+        textElements.push('\n');
+      else
         textElements.push('\n\n');
+      
       break; 
       
     case DocumentApp.ElementType.LIST_ITEM:
@@ -525,6 +532,16 @@ function processElement(element, state, depth) {
       
     case DocumentApp.ElementType.TEXT:
       var text = handleText(element, state);
+      
+      // Check for source code delimiter
+      if(/^```.+$/.test(text.join(''))) {
+        state.inSource = true; 
+      }
+      
+      if(text.join('') === '```') {
+        state.inSource = false; 
+      }
+      
       textElements = textElements.concat(text);
       break;
 
