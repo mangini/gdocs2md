@@ -3,6 +3,8 @@ gdocs2md
 
 A simple Google Apps script to convert a properly formatted Google Drive Document to the markdown (.md) format. 
 
+![Screenshot Google Docs with gdocs2md](markdown.png)
+
 ## Usage
 
   * Adding this script to your doc (once per doc):
