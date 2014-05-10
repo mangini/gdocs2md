@@ -1,22 +1,10 @@
-/*
-Usage: 
-  Adding this script to your doc: 
-    - Tools > Script Manager > New
-    - Select "Blank Project", then paste this code in and save.
-  Running the script:
-    - Tools > Script Manager
-    - Select "ConvertToMarkdown" function.
-    - Click Run button.
-    - Converted doc will be mailed to you. Subject will be "[MARKDOWN_MAKER]...".
-*/
-
 // Open handler to add Menu
 function onOpen() {
   var ui = DocumentApp.getUi();
-  ui.createMenu('Export')
-      .addItem('Markdown file', 'ConvertToMarkdownFile')
-      .addItem('Markdown email', 'ConvertToMarkdownEmail')
-      .addItem('Latex equation', 'ConvertEquation')
+  ui.createMenu('Markdown')
+      .addItem('Export File', 'ConvertToMarkdownFile')
+      .addItem('Export Email', 'ConvertToMarkdownEmail')
+      .addItem('Latex Equation', 'ConvertEquation')
       .addToUi();
   
   DocumentApp.getActiveDocument().add
@@ -89,13 +77,23 @@ function ConvertToMarkdownFile() {
     folder = parent.getFolders()[folder]; 
     
     if(folder.getName() == 'target') {
-      Logger.log("Trashing target folder..."); 
-      folder.setTrashed(true); 
-      break; 
+      var ui = DocumentApp.getUi(); 
+      var result = ui.alert(
+        'Existing target folder found!',
+        'WARNING: delete all contents of target folder?',
+        ui.ButtonSet.YES_NO);
+      if(result == ui.Button.YES) {
+        Logger.log("Trashing target folder..."); 
+        folder.setTrashed(true); 
+        break; 
+      } else {
+        Logger.log("Do not delete target folder, stopping!"); 
+        return; 
+      }
     }
   }
   
-  // Create new target folder if none exists
+  // Create new target folder 
   Logger.log("Creating output folder..."); 
   var found = parent.createFolder("target"); 
   
@@ -112,9 +110,7 @@ function ConvertToMarkdownFile() {
   found.createFile(DocumentApp.getActiveDocument().getName() + ".md", convertedDoc.text, "text/plain");   
 }
 
-function markdown() {
-  var doc = DocumentApp.getActiveDocument().getActiveSection();
-  
+function processSection(section) {
   var state = {
     'inSource' : false,
     'images' : [],
@@ -122,7 +118,45 @@ function markdown() {
     'prevDoc' : [],
     'nextDoc' : [],
   };
-  var textElements = processDocument(doc, state, 0);
+  var textElements = processElement(section, state, 0);
+  return {
+    'textElements' : textElements,
+    'state' : state,
+  }; 
+}
+
+
+function markdown() {
+  // Text elements
+  var textElements = []; 
+  
+  // Process header
+  var head = DocumentApp.getActiveDocument().getHeader(); 
+  if(head != null) {
+    var teHead = processSection(head); 
+    textElements = textElements.concat(teHead.textElements); 
+    textElements.push('\n\n'); 
+    textElements.push('---'); 
+    textElements.push('\n\n');
+  }
+  
+  // Process body
+  var doc = DocumentApp.getActiveDocument().getBody();
+  doc = processSection(doc); 
+  textElements = textElements.concat(doc.textElements); 
+  
+  // Process footer
+  var foot = DocumentApp.getActiveDocument().getFooter(); 
+  Logger.log("foot: " + foot);
+  if(foot != null) {
+    var teFoot = processSection(foot); 
+    textElements.push('\n\n'); 
+    textElements.push('---'); 
+    textElements.push('\n\n'); 
+    textElements = textElements.concat(teFoot.textElements); 
+  }
+  
+  // Build final output string
   var text = textElements.join('');
   
   // Replace critical chars
@@ -130,13 +164,13 @@ function markdown() {
   
   // Debug logging
   Logger.log("Result: " + text);
-  Logger.log("Images: " + state.imageCounter);
+  Logger.log("Images: " + doc.state.imageCounter);
   
   // Build attachment and file lists
   var attachments = [];
   var files = [];
-  for(var i in state.images) {
-    var image = state.images[i];
+  for(var i in doc.state.images) {
+    var image = doc.state.images[i];
     attachments.push( {
       "fileName": image.name,
       "mimeType": image.type,
@@ -162,13 +196,13 @@ function escapeHTML(text) {
   return text.replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }
 
-function processTable(element) {
+// Add repeat function to strings
+String.prototype.repeat = function( num ) {
+  return new Array( num + 1 ).join( this );
+}
+
+function handleTable(element, state, depth) {
   var textElements = [];
-  
-  String.prototype.repeat = function( num )
-  {
-    return new Array( num + 1 ).join( this );
-  }
   
   textElements.push("\n");
   
@@ -190,7 +224,10 @@ function processTable(element) {
       // Add table data
       for(var ic=0; ic<row.getNumCells(); ic++) {
         var cell = row.getCell(ic);
-        var text = cell.getText(); 
+        
+        // Recursively build cell content
+        var text = processChilds(cell, state, depth+1).join('');
+        
         text = text.replace(/(\r\n|\n|\r)/gm,"");
         maxSize = Math.max(text.length, maxSize); 
         
@@ -396,31 +433,32 @@ function processChilds(doc, state, depth) {
   for(var i=0; i < doc.getNumChildren(); i++)  {
     var child = doc.getChild(i); 
     state.nextDoc[depth] = (i+1 < doc.getNumChildren())?doc.getChild(i+1) : child;
-    textElements = textElements.concat(processDocument(child, state, depth+1)); 
+    textElements = textElements.concat(processElement(child, state, depth+1)); 
   }
   return textElements;
 }
 
 
-function processDocument(doc, state, depth) {
-  //Logger.log("Processing document: " + doc); 
-  //Logger.log("State: " + state); 
-  
-  var prevDoc = state.prevDoc[depth] || doc; 
-  state.prevDoc[depth] = doc; 
+function processElement(element, state, depth) {
+  var prevDoc = state.prevDoc[depth] || element; 
+  state.prevDoc[depth] = element; 
   
   // Result
   var textElements = [];
     
-  switch(doc.getType()) {
+  switch(element.getType()) {
+    case DocumentApp.ElementType.DOCUMENT:
+      Logger.log("this is a document"); 
+      break; 
+      
     case DocumentApp.ElementType.BODY_SECTION: 
-      textElements = textElements.concat(processChilds(doc, state, depth));
+      textElements = textElements.concat(processChilds(element, state, depth));
       break; 
       
     case DocumentApp.ElementType.PARAGRAPH:
       // Determine header prefix
       var prefix = ''; 
-      switch (doc.getHeading()) {
+      switch (element.getHeading()) {
         // Add a # for each heading level. No break, so we accumulate the right number.
         case DocumentApp.ParagraphHeading.HEADING6: prefix += '#';
         case DocumentApp.ParagraphHeading.HEADING5: prefix += '#';
@@ -438,32 +476,47 @@ function processDocument(doc, state, depth) {
       textElements.push(prefix);
       
       // Process childs
-      textElements = textElements.concat(processChilds(doc, state, depth));
+      textElements = textElements.concat(processChilds(element, state, depth));
       
-      // Add paragraph break
-      textElements.push('\n\n');
+      // Add paragraph break only if its not the last element on this layer
+      if(state.nextDoc[depth-1] != element)
+        textElements.push('\n\n');
       break; 
       
     case DocumentApp.ElementType.LIST_ITEM:
-      textElements = textElements.concat(handleListItem(doc, state, depth)); 
+      textElements = textElements.concat(handleListItem(element, state, depth)); 
       textElements.push('\n');
       
-      if(state.nextDoc[depth-1].getType() != doc.getType()) {
+      if(state.nextDoc[depth-1].getType() != element.getType()) {
         textElements.push('\n');
       }
       
       break;
-      
-    case DocumentApp.ElementType.HORIZONTAL_RULE:
-      textElements.push('* * *\n');
-      break; 
      
-    case DocumentApp.ElementType.FOOTNOTE:
-      textElements.push(' (NOTE: ' + doc.getText() + ')');
+    case DocumentApp.ElementType.HEADER_SECTION:
+      textElements = textElements.concat(processChilds(element, state, depth));
+      break; 
+      
+    case DocumentApp.ElementType.FOOTER_SECTION:
+      textElements = textElements.concat(processChilds(element, state, depth));
       break;
       
+    case DocumentApp.ElementType.FOOTNOTE:
+      textElements.push(' (NOTE: ');
+      textElements = textElements.concat(processChilds(element.getFootnoteContents(), state, depth));
+      textElements.push(')');
+      break; 
+      
+    case DocumentApp.ElementType.HORIZONTAL_RULE:
+      textElements.push('---\n');
+      break; 
+     
+    case DocumentApp.ElementType.INLINE_DRAWING:
+      // Cannot handle this type - there is no export function for rasterized or SVG images...
+      break; 
+      
     case DocumentApp.ElementType.TABLE:
-      textElements = textElements.concat(processTable(doc));
+      textElements = textElements.concat(handleTable(element, state, depth));
       break;
       
     case DocumentApp.ElementType.TABLE_OF_CONTENTS:
@@ -471,21 +524,25 @@ function processDocument(doc, state, depth) {
       break;
       
     case DocumentApp.ElementType.TEXT:
-      var text = handleText(doc, state);
+      var text = handleText(element, state);
       textElements = textElements.concat(text);
       break;
 
     case DocumentApp.ElementType.INLINE_IMAGE: 
-      textElements = textElements.concat(handleImage(doc, state));
+      textElements = textElements.concat(handleImage(element, state));
+      break; 
+      
+    case DocumentApp.ElementType.PAGE_BREAK:
+      // Ignore page breaks
       break; 
       
     case DocumentApp.ElementType.EQUATION: 
-      var latexEquation = handleEquationFunction(doc, state); 
-      latexEquation = "$$" + latexEquation.trim() + "$$"; 
+      var latexEquation = handleEquationFunction(element, state); 
+      latexEquation = "$" + latexEquation.trim() + "$"; 
       textElements.push(latexEquation);
       break; 
     default:
-      throw("Unknown element type: " + doc.getType());
+      throw("Unknown element type: " + element.getType());
   }
   
   return textElements; 
