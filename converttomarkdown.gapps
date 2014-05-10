@@ -1,13 +1,22 @@
 // Open handler to add Menu
-function onOpen() {
+function onOpen(e) {
   var ui = DocumentApp.getUi();
-  ui.createMenu('Markdown')
+  
+  if (e && e.authMode == ScriptApp.AuthMode.NONE) {
+    ui.createMenu('Markdown')
+      .addItem('Latex Equation', 'ConvertEquation')
+      .addToUi();
+  } else {
+    ui.createMenu('Markdown')
       .addItem('Export File', 'ConvertToMarkdownFile')
       .addItem('Export Email', 'ConvertToMarkdownEmail')
       .addItem('Latex Equation', 'ConvertEquation')
       .addToUi();
-  
-  DocumentApp.getActiveDocument().add
+  }
+}
+
+function onInstall(e) {
+  onOpen(e);
 }
 
 function ConvertEquation() {
@@ -37,7 +46,7 @@ function ConvertEquation() {
 // Convert current document to markdown and email it 
 function ConvertToMarkdownEmail() {
   // Convert to markdown
-  var convertedDoc = ConvertToMarkdown(); 
+  var convertedDoc = markdown(); 
   
   // Add markdown document to attachments
   convertedDoc.attachments.push({"fileName":DocumentApp.getActiveDocument().getName()+".md", 
@@ -80,7 +89,7 @@ function ConvertToMarkdownFile() {
       var ui = DocumentApp.getUi(); 
       var result = ui.alert(
         'Existing target folder found!',
-        'WARNING: delete all contents of target folder?',
+        'Delete all contents of target folder?',
         ui.ButtonSet.YES_NO);
       if(result == ui.Button.YES) {
         Logger.log("Trashing target folder..."); 
