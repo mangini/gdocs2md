@@ -132,15 +132,17 @@ function ConvertToMarkdownFile() {
 
 function processSection(section) {
   var state = {
-    'inSource' : false,
-    'images' : [],
-    'imageCounter' : 0,
-    'prevDoc' : [],
-    'nextDoc' : [],
-    'inSource' : false,
-    'size' : [],
+    'inSource' : false, // Document read pointer is within a fenced code block
+    'images' : [], // Image data found in document
+    'imageCounter' : 0, // Image counter 
+    'prevDoc' : [], // Pointer to the previous element on aparsing tree level
+    'nextDoc' : [], // Pointer to the next element on a parsing tree level
+    'size' : [], // Number of elements on a parsing tree level
   };
+  
+  // Process element tree outgoing from the root element
   var textElements = processElement(section, state, 0);
+  
   return {
     'textElements' : textElements,
     'state' : state,
@@ -155,11 +157,14 @@ function markdown() {
   // Process header
   var head = DocumentApp.getActiveDocument().getHeader(); 
   if(head != null) {
+    // Do not include empty header sections
     var teHead = processSection(head); 
-    textElements = textElements.concat(teHead.textElements); 
-    textElements.push('\n\n'); 
-    textElements.push('---'); 
-    textElements.push('\n\n');
+    if(teHead.length > 0) {
+      textElements = textElements.concat(teHead.textElements); 
+      textElements.push('\n\n'); 
+      textElements.push('---'); 
+      textElements.push('\n\n');
+    }
   }
   
   // Process body
@@ -172,10 +177,13 @@ function markdown() {
   Logger.log("foot: " + foot);
   if(foot != null) {
     var teFoot = processSection(foot); 
-    textElements.push('\n\n'); 
-    textElements.push('---'); 
-    textElements.push('\n\n'); 
-    textElements = textElements.concat(teFoot.textElements); 
+    // Do not include empty footer sections
+    if(teFoot.length > 0) {
+      textElements.push('\n\n'); 
+      textElements.push('---'); 
+      textElements.push('\n\n'); 
+      textElements = textElements.concat(teFoot.textElements); 
+    }
   }
   
   // Build final output string
@@ -603,5 +611,4 @@ function processElement(element, state, depth) {
   
   return textElements; 
 }
-
 
