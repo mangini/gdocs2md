@@ -32,7 +32,7 @@ A simple Google Apps script to convert a properly formatted Google Drive Documen
   * Images:
     * images are correctly extracted and sent as attachments
   * Drawings: 
-    * not supported 
+    * not supported - there seems to be no API function to export a drawing as a rasterized or vector image. 
   * Equations:
     * Equations are converted to LaTex equations and surrounded by ``$`` signs 
   * Table of contents:
