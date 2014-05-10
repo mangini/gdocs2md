@@ -37,12 +37,14 @@ A simple Google Apps script to convert a properly formatted Google Drive Documen
     * Equations are converted to LaTex equations and surrounded by ``$`` signs 
   * Table of contents:
     * Is replaced by `[[TOC]]`
-  * Line breaks: 
+  * Horizontal line: 
     * Inserts a `---`
+  * Header/Footer:
+    * Extracts text with all formattings and inserts it at the top and bottom of the markdown document, seperated by `---`.
   * Tables:
-    * Converted to Markdown tables following GitHub Markdown syntax. 
+    * Converted to Markdown tables following GitHub Markdown syntax. Formatting within cells gets transferred.
   * Source code: 
-    * Fenced code blocks are started by three back-ticks and a string and ended by three back-ticks. Single line break is used within fenced code blocks. 
+    * Fenced code blocks are started by three back-ticks and a string and ended by three back-ticks. If such a fenced code block is detected, single line break is used within it. 
 
 ## CONTRIBUTORS
 
