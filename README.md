@@ -13,7 +13,9 @@ A simple Google Apps script to convert a properly formatted Google Drive Documen
     * File -> Save
     
   * Running the script (run as many times as you want):
-    - Export > Markdown email
+    - Markdown > Export File (Creates a new folder `target` in the same directory as the document. Markdown and image files are stored in it. A warning is generated if a `target` directory already exists) 
+    - Markdown > Export Email (Sends you an email with the Markdown and image files)
+    - Markdown > Latex Equation (Put your cursor on a equation and run the script. It will output the LaTex formatting in a dialog)
 
 
 ## Interpreted formats
@@ -27,19 +29,16 @@ A simple Google Apps script to convert a properly formatted Google Drive Documen
     * bullet lists are converted to "`*`" Markdown format appropriately, including nested lists
   * Images:
     * images are correctly extracted and sent as attachments
+  * Drawings: 
+    * not supported 
   * Equations:
-    * Equations are converted to LaTex equation strings and surrounded by ``$`` signs 
-  * Blocks:
-    * Table of contents is replaced by `[[TOC]]`
-    * blocks of text delimited by "--- class whateverclassnameyouwant" and "---" are converted to `<div class="whateverclassnameyouwant"></div>` 
-    * Source code: 
-      * **UPDATED**: blocks of text delimited by "--- source code" or "--- src" and "---" are converted to `<pre></pre>`
-      * **NEW**: blocks of text delimited by "--- source pretty" or "--- srcp" and "---" are converted to `<pre class="prettyprint"></pre>`
-    * Tables:
-      * **NEW**: Simple `<table>` processing
-  * "--- jsperf `<testID>`" is replaced by an iframe that shows an interactive chart of a JSPerf test. The `<testID>` is the last part of the URL of the Browserscope anchor in your JSPerf test. Something like `"agt1YS1wcm9maWxlcnINCxIEVGVzdBjlm_EQDA"` in the URL `http://www.browserscope.org/user/tests/table/agt1YS1wcm9maWxlcnINCxIEVGVzdBjlm_EQDA`
- 
-
+    * Equations are converted to LaTex equations and surrounded by ``$`` signs 
+  * Table of contents:
+    * Is replaced by `[[TOC]]`
+  * Line breaks: 
+    * Inserts a `---`
+  * Tables
+    * Converted to Markdown tables following GitHub Markdown syntax. 
 
 ## CONTRIBUTORS
 
