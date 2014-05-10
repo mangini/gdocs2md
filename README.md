@@ -37,8 +37,10 @@ A simple Google Apps script to convert a properly formatted Google Drive Documen
     * Is replaced by `[[TOC]]`
   * Line breaks: 
     * Inserts a `---`
-  * Tables
+  * Tables:
     * Converted to Markdown tables following GitHub Markdown syntax. 
+  * Source code: 
+    * Source code sections are started by ````string` and ended by `````. Single line breaks between paragraphs are used within source code sections.  
 
 ## CONTRIBUTORS
 
