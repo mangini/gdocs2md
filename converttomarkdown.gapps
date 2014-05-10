@@ -51,10 +51,16 @@ function ConvertToMarkdownEmail() {
   // Add markdown document to attachments
   convertedDoc.attachments.push({"fileName":DocumentApp.getActiveDocument().getName()+".md", 
                                  "mimeType": "text/plain", "content": convertedDoc.text});
-  
+
+  // In some cases user email is not accessible  
+  var mail = Session.getActiveUser().getEmail(); 
+  if(mail === '') {
+    DocumentApp.getUi().alert("Could not read your email address"); 
+    return;
+  }
   
   // Send email with markdown document
-  MailApp.sendEmail(Session.getActiveUser().getEmail(),
+  MailApp.sendEmail(mail,
 					"[MARKDOWN_MAKER] "+DocumentApp.getActiveDocument().getName(),
 					"Your converted markdown document is attached (converted from "+DocumentApp.getActiveDocument().getUrl()+")"+
 					"\n\nDon't know how to use the format options? See http://github.com/mangini/gdocs2md\n",
@@ -72,10 +78,15 @@ function ConvertToMarkdownFile() {
   var file = DocsList.getFileById(id);
   var parents = file.getParents();
   
-  if(parents.length > 1)
-  {
+  if(parents.length > 1) {
     Logger.log("File has multiple parent directory. Script does not work in this case"); 
-    return null; 
+    DocumentApp.getUi().alert("Document must not be in multiple directories");
+    return; 
+  }
+  
+  if(parents.length == 0) {
+    DocumentApp.getUi().alert("Document has to be in a directory for the export"); 
+    return; 
   }
   
   // Use first parent
