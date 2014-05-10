@@ -159,7 +159,7 @@ function markdown() {
   if(head != null) {
     // Do not include empty header sections
     var teHead = processSection(head); 
-    if(teHead.length > 0) {
+    if(teHead.textElements.length > 0) {
       textElements = textElements.concat(teHead.textElements); 
       textElements.push('\n\n'); 
       textElements.push('---'); 
@@ -178,7 +178,7 @@ function markdown() {
   if(foot != null) {
     var teFoot = processSection(foot); 
     // Do not include empty footer sections
-    if(teFoot.length > 0) {
+    if(teFoot.textElements.length > 0) {
       textElements.push('\n\n'); 
       textElements.push('---'); 
       textElements.push('\n\n'); 
@@ -282,8 +282,26 @@ function handleTable(element, state, depth) {
   table = buildTable(Math.max(10, table.maxSize + 1)); 
   textElements = textElements.concat(table.stack);
   
-  textElements.push("\n");
+  textElements.push('\n');
   return textElements;
+}
+
+function formatMd(text, indexLeft, formatLeft, indexRight, formatRight) {
+  var leftPad = '' + formatLeft; 
+  if(indexLeft > 0) {
+    if(text[indexLeft - 1] != ' ')
+      leftPad = ' ' + formatLeft; 
+  }
+  
+  var rightPad = formatRight + '';
+  if(indexRight < text.length) {
+    if(text[indexRight] != ' ') {
+      rightPad = formatRight + ' ';
+    }
+  }
+  
+  var formatted = text.substring(0, indexLeft) + leftPad + text.substring(indexLeft, indexRight) + rightPad + text.substring(indexRight);
+  return formatted;
 }
 
 
@@ -306,6 +324,9 @@ function handleText(doc, state) {
         url = txt.getLinkUrl(off);
       }
       formatted = formatted.substring(0, index) + '[' + formatted.substring(index, lastIndex) + '](' + url + ')' + formatted.substring(lastIndex);
+      
+      // Do not handle additional formattings for links
+      continue; 
     } 
     
     // Handle font family
@@ -315,12 +336,15 @@ function handleText(doc, state) {
       
       if (!state.inSource && font === sourceFont) {
         // Scan left until text without source font is found
-        while (i > 0 && txt.getFontFamily(attrs[i-1]) && txt.getFontFamily(attrs[i-1]) === sourceFont) {
+        while (i > 0 && doc.getFontFamily(attrs[i-1]) && doc.getFontFamily(attrs[i-1]) === sourceFont) {
           i -= 1;
           off = attrs[i];
         }
         
-        formatted = formatted.substring(0, lastIndex) + '`' + formatted.substring(index, lastIndex) + '`' + formatted.substring(lastIndex);
+        formatted = formatMd(formatted, index, '`', lastIndex, '`');
+        
+        // Do not handle additional formattings for code
+        continue; 
       }
     }
     
@@ -334,12 +358,12 @@ function handleText(doc, state) {
         dleft = "**_"; 
         dright  = "_**";
       }
-      formatted = formatted.substring(0, index) + dleft + formatted.substring(index, lastIndex) + dright + formatted.substring(lastIndex);
       
+      formatted = formatMd(formatted, index, dleft, lastIndex, dright); 
     } 
     // Handle italic
     else if(doc.isItalic(index)) {
-      formatted = formatted.substring(0, index) + '*' + formatted.substring(index, lastIndex) + '*' + formatted.substring(lastIndex);
+      formatted = formatMd(formatted, index, '*', lastIndex, '*'); 
     }
     
     // Keep track of last position in text
