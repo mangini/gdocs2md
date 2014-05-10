@@ -40,7 +40,7 @@ A simple Google Apps script to convert a properly formatted Google Drive Documen
   * Tables:
     * Converted to Markdown tables following GitHub Markdown syntax. 
   * Source code: 
-    * Source code sections are started by <code>```string</code> and ended by <code>```</code>. Single line breaks between paragraphs are used within source code sections.  
+    * Fenced code blocks are started by three back-ticks and a string and ended by three back-ticks. Single line break is used within fenced code blocks. 
 
 ## CONTRIBUTORS
 
