@@ -404,6 +404,7 @@ function handleListItem(item, state, depth) {
       counter++;
       state.listCounters[key] = counter;
       prefix += counter + '. ';
+      break;
     default:
       prefix += '* ';
       break;
