@@ -138,6 +138,7 @@ function processSection(section) {
     'prevDoc' : [], // Pointer to the previous element on aparsing tree level
     'nextDoc' : [], // Pointer to the next element on a parsing tree level
     'size' : [], // Number of elements on a parsing tree level
+    'listCounters' : [], // List counter
   };
   
   // Process element tree outgoing from the root element
@@ -389,18 +390,23 @@ function handleListItem(item, state, depth) {
   
   // Add marker based on glyph type
   var glyph = item.getGlyphType();
+  Logger.log("Glyph: " + glyph);
   switch(glyph) {
     case DocumentApp.GlyphType.BULLET:
     case DocumentApp.GlyphType.HOLLOW_BULLET:
     case DocumentApp.GlyphType.SQUARE_BULLET: 
       prefix += '* ';
-      break; 
-    default:
+      break;
+    case DocumentApp.GlyphType.NUMBER:
       var key = item.getListId() + '.' + item.getNestingLevel();
+      Logger.log("key " + key); 
       var counter = state.listCounters[key] || 0;
       counter++;
       state.listCounters[key] = counter;
       prefix += counter + '. ';
+    default:
+      prefix += '* ';
+      break;
   }
   
   // Add prefix
@@ -635,4 +641,3 @@ function processElement(element, state, depth) {
   
   return textElements; 
 }
-
