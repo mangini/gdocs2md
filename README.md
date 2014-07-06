@@ -3,20 +3,21 @@ gdocs2md
 
 A simple Google Apps script to convert a properly formatted Google Drive Document to the markdown (.md) format. 
 
+![Screenshot Google Docs with gdocs2md](markdown.png)
+
 ## Usage
 
   * Adding this script to your doc (once per doc):
     * Open your Google Drive document (http://drive.google.com)
     * Tools -> Script Manager > New
     * Select "Blank Project", then paste this code in and save.
-    * Clear the myFunction() default empty function and paste the contents of [converttomarkdown.gapps](https://raw.github.com/mangini/gdocs2md/master/converttomarkdown.gapps) into the code editor
+    * Clear the myFunction() default empty function and paste the contents of `converttomarkdown.gapps` into the code editor
     * File -> Save
     
   * Running the script (run as many times as you want):
-    - Tools > Script Manager
-    - Select "ConvertToMarkdown" function.
-    - Click Run button (First run will require you to authorize it. Authorize and run again)
-    - Converted doc with images attached will be emailed to you. Subject will be "[MARKDOWN_MAKER]...".
+    - Markdown > Export File (Creates a new folder `target` in the same directory as the document. Markdown and image files are stored in it. A warning is generated if a `target` directory already exists) 
+    - Markdown > Export Email (Sends you an email with the Markdown and image files)
+    - Markdown > Latex Equation (Put your cursor on a equation and run the script. It will output the LaTex formatting in a dialog)
 
 
 ## Interpreted formats
@@ -30,22 +31,26 @@ A simple Google Apps script to convert a properly formatted Google Drive Documen
     * bullet lists are converted to "`*`" Markdown format appropriately, including nested lists
   * Images:
     * images are correctly extracted and sent as attachments
-  * Blocks:
-    * Table of contents is replaced by `[[TOC]]`
-    * blocks of text delimited by "--- class whateverclassnameyouwant" and "---" are converted to `<div class="whateverclassnameyouwant"></div>` 
-    * Source code: 
-      * **UPDATED**: blocks of text delimited by "--- source code" or "--- src" and "---" are converted to `<pre></pre>`
-      * **NEW**: blocks of text delimited by "--- source pretty" or "--- srcp" and "---" are converted to `<pre class="prettyprint"></pre>`
-    * Tables:
-      * **NEW**: Simple `<table>` processing
-  * "--- jsperf `<testID>`" is replaced by an iframe that shows an interactive chart of a JSPerf test. The `<testID>` is the last part of the URL of the Browserscope anchor in your JSPerf test. Something like `"agt1YS1wcm9maWxlcnINCxIEVGVzdBjlm_EQDA"` in the URL `http://www.browserscope.org/user/tests/table/agt1YS1wcm9maWxlcnINCxIEVGVzdBjlm_EQDA`
- 
-
+  * Drawings: 
+    * not supported - there seems to be no API function to export a drawing as a rasterized or vector image. 
+  * Equations:
+    * Equations are converted to LaTex equations and surrounded by ``$`` signs 
+  * Table of contents:
+    * Is replaced by `[[TOC]]`
+  * Horizontal line: 
+    * Inserts a `---`
+  * Header/Footer:
+    * Extracts text with all formattings and inserts it at the top and bottom of the markdown document, seperated by `---`.
+  * Tables:
+    * Converted to Markdown tables following GitHub Markdown syntax. Formatting within cells gets transferred.
+  * Source code: 
+    * Fenced code blocks are started by three back-ticks and a string and ended by three back-ticks. If such a fenced code block is detected, single line break is used within it. 
 
 ## CONTRIBUTORS
 
 * Renato Mangini - [G+](//google.com/+renatomangini) - [Github](//github.com/mangini)
 * Ed Bacher - [G+](//plus.google.com/106923847899206957842) - [Github](//github.com/evbacher)
+* Andreas Wolke - [G+](//plus.google.com/+AndreasWolke) - [Github](//github.com/jacksonicson)
 
 ## LICENSE
 
