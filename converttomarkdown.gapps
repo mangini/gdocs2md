@@ -121,7 +121,7 @@ function convertToMarkdownAttachments(document) {
       
   }
   
-  attachments.push({"fileName":document.getName()+".md", "mimeType": "text/plain", "content": text});
+  attachments.push({"fileName":document.getName()+".md", "mimeType": "text/x-markdown", "content": text});
 
   return attachments;
 }
