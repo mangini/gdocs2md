@@ -234,7 +234,7 @@ function processParagraph(index, element, inSrc, imageCounter, listCounters) {
   
     var pOut = "";
     for (var i=0; i<textElements.length; i++) {
-      pOut += processTextElement(inSrc, textElements[i]);
+      pOut += processTextElement2(inSrc, textElements[i]);
     }
 
     // replace Unicode quotation marks
@@ -287,6 +287,111 @@ function findPrefix(inSrc, element, listCounters) {
   return prefix;
 }
 
+//Transfer any leading spaces from inside to end of pre, and trailing spaces from inside to start of post,
+//so that bold/italics symbols are adjacent to the words they apply to, without intervening white space.
+function compressInside(sections, blank) {
+  while (sections.inside.substring(0, 1) == blank) {
+    sections.pre = sections.pre + blank; 
+    sections.inside = sections.inside.substring(1);
+  }
+  while (sections.inside.substring(sections.inside.length - 1) == blank) {
+    sections.post = blank + sections.post;
+    sections.inside = sections.inside.substring(0, sections.inside.length - 1);
+  }
+}
+
+//Compress inside using spaces, tabs, carriage returns, newlines and form feeds.
+function compressInsideWhitespace(sections) {
+  compressInside(sections, " ");
+  compressInside(sections, "\t");
+  compressInside(sections, "\r");
+  compressInside(sections, "\n");
+  compressInside(sections, "\f");
+}
+
+function processTextElement2(inSrc, txt) {
+  if (typeof(txt) === 'string') {
+    return txt;
+  }
+  
+  var pOut = txt.getText();
+  if (! txt.getTextAttributeIndices) {
+    return pOut;
+  }
+  
+  //Get the offsets within the text where text formatting runs start
+  var attrs=txt.getTextAttributeIndices();
+
+  var s = "";
+    
+  //Previous offset processed, starts at end of text
+  var lastOff=pOut.length;
+
+  //Process the text string in formatting runs, backwards
+  for (var i=attrs.length-1; i>=0; i--) {
+    //Start of formatting run
+    var off=attrs[i];
+    var url=txt.getLinkUrl(off);
+    var font=txt.getFontFamily(off);
+
+    var sections = {
+      inside: pOut.substring(off, lastOff),
+      pre: pOut.substring(0, off),
+      post: pOut.substring(lastOff)
+    }
+
+    //Process URL
+    if (url) {  // start of link
+      if (i>=1 && attrs[i-1]==off-1 && txt.getLinkUrl(attrs[i-1])===url) {
+        // detect links that are in multiple pieces because of errors on formatting:
+        i-=1;
+        off=attrs[i];
+        url=txt.getLinkUrl(off);
+      }
+      pOut = sections.pre + '[' + sections.inside + '](' + url + ')' + sections.post;
+      
+    //Process font
+    } else if (font) {
+      if (!inSrc && font===font.COURIER_NEW) {
+        while (i>=1 && txt.getFontFamily(attrs[i-1]) && txt.getFontFamily(attrs[i-1])===font.COURIER_NEW) {
+          // detect fonts that are in multiple pieces because of errors on formatting:
+          i-=1;
+          off=attrs[i];
+        }
+        pOut = sections.pre + '`' + sections.inside + '`' + sections.post;
+      }
+    }
+    
+    //Process bold and/or italic
+    if (txt.isBold(off) || txt.isItalic(off)) {
+      
+      var d1 = d2 = "*";
+      
+      if (txt.isBold(off)) {
+        var d1 = d2 = "**"  
+        if (txt.isItalic(off)) {
+          d1 = "**_"; d2 = "_**";
+        }
+      }
+      
+      //Shrink bold/italic regions to reduce the whitespace they apply to.
+      compressInsideWhitespace(sections);
+      
+      //If we have shrunk the formatted region to nothing, ignore it
+      if (sections.inside.length == 0) {
+        pOut = sections.pre + sections.post;
+        
+      //Apply formatting
+      } else {      
+        pOut = sections.pre + d1 + sections.inside + d2 + sections.post;      
+      }
+    }
+    
+    lastOff=off;
+  }
+  return pOut;
+}
+
 function processTextElement(inSrc, txt) {
   if (typeof(txt) === 'string') {
     return txt;
@@ -297,13 +402,20 @@ function processTextElement(inSrc, txt) {
     return pOut;
   }
   
+  //Get the offsets within the text where text formatting runs start
   var attrs=txt.getTextAttributeIndices();
+  
+  //Previous offset processed, starts at end of text
   var lastOff=pOut.length;
 
+  //Process the text string in formatting runs, backwards
   for (var i=attrs.length-1; i>=0; i--) {
+    //Start of formatting run
     var off=attrs[i];
     var url=txt.getLinkUrl(off);
     var font=txt.getFontFamily(off);
+    
+    //Process URL
     if (url) {  // start of link
       if (i>=1 && attrs[i-1]==off-1 && txt.getLinkUrl(attrs[i-1])===url) {
         // detect links that are in multiple pieces because of errors on formatting:
@@ -312,6 +424,8 @@ function processTextElement(inSrc, txt) {
         url=txt.getLinkUrl(off);
       }
       pOut=pOut.substring(0, off)+'['+pOut.substring(off, lastOff)+']('+url+')'+pOut.substring(lastOff);
+      
+    //Process font
     } else if (font) {
       if (!inSrc && font===font.COURIER_NEW) {
         while (i>=1 && txt.getFontFamily(attrs[i-1]) && txt.getFontFamily(attrs[i-1])===font.COURIER_NEW) {
@@ -322,6 +436,8 @@ function processTextElement(inSrc, txt) {
         pOut=pOut.substring(0, off)+'`'+pOut.substring(off, lastOff)+'`'+pOut.substring(lastOff);
       }
     }
+    
+    //Process bold and bold italic
     if (txt.isBold(off)) {
       var d1 = d2 = "**";
       if (txt.isItalic(off)) {
@@ -329,9 +445,12 @@ function processTextElement(inSrc, txt) {
         d1 = "**_"; d2 = "_**";
       }
       pOut=pOut.substring(0, off)+d1+pOut.substring(off, lastOff)+d2+pOut.substring(lastOff);
+      
+    //Process italic
     } else if (txt.isItalic(off)) {
       pOut=pOut.substring(0, off)+'*'+pOut.substring(off, lastOff)+'*'+pOut.substring(lastOff);
     }
+    
     lastOff=off;
   }
   return pOut;
