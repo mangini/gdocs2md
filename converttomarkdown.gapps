@@ -31,9 +31,10 @@ function convertDownOneLevelByName(folderName) {
   convertDownOneLevel(folder);  
 }
 
-function convertDownOneLevel(folder) {
-  var mainExportFolder = folder.createFolder(exportFolderName())
-  var folders = folder.getFolders();
+function convertDownOneLevel(rootFolder) {
+  var mainExportFolder = rootFolder.createFolder(exportFolderName())
+  var folders = rootFolder.getFolders();
+  //Convert all folders that don't start with our export prefix
   for (var i in folders) {
     var folder = folders[i];
     if (folder.getName().substring(0, exportFolderPrefix.length) != exportFolderPrefix) {
@@ -41,6 +42,8 @@ function convertDownOneLevel(folder) {
       convertFolder(folder, exportFolder);
     }
   }
+  //Convert contents of the folder as well, mainly to catch any meta data
+  convertFolder(rootFolder, mainExportFolder);
 }
 
 function convertFolderByName(folderName) {
