@@ -5,8 +5,9 @@ Usage:
     - Select "Blank Project", then paste this code in and save.
     
   Preparing files:
-    - Put all documents you wish to convert into a folder in your docs list,
-      called "DocsToConvertToMarkdown"
+    - Put all documents you wish to convert into category folders within a folder in your docs list,
+      called "DocsToConvertToMarkdown". Each category folder can contain multiple documents. You can
+      use just one category folder, e.g. "default" if you don't want to use categories.
   
   Running the script:
     - Tools > Script Manager
@@ -22,35 +23,70 @@ Usage:
 */
 
 function convertDefaultFolder() {
-  convertFolder('DocsToConvertToMarkdown');
+  convertDownOneLevelByName('DocsToConvertToMarkdown');
 }
 
-function convertFolder(folderName) {
+function convertDownOneLevelByName(folderName) {
   var folder = DocsList.getFolder(folderName);
+  convertDownOneLevel(folder);  
+}
+
+function convertDownOneLevel(folder) {
+  var mainExportFolder = folder.createFolder(exportFolderName())
+  var folders = folder.getFolders();
+  for (var i in folders) {
+    var folder = folders[i];
+    if (folder.getName().substring(0, exportFolderPrefix.length) != exportFolderPrefix) {
+      var exportFolder = mainExportFolder.createFolder(folder.getName())
+      convertFolder(folder, exportFolder);
+    }
+  }
+}
+
+function convertFolderByName(folderName) {
+  var folder = DocsList.getFolder(folderName);
+  var exportFolder = folder.createFolder(exportFolderName())
+  convertFolder(folder, exportFolder);
+}
+
+function convertFolder(folder, exportFolder) {
   var files = folder.getFilesByType(DocsList.FileType.DOCUMENT);
-  var timeStamp = Utilities.formatDate(new Date(), "GMT", "yyyy-MM-dd'T'HH:mm:ss'Z'")
-  var exportFolder = folder.createFolder("ExportedMarkdown-" + timeStamp)
 
   var convertedDocNames = "";
   
   for (var i in files) {
     var doc = DocumentApp.openById(files[i].getId());
-    var attachments = convertToMarkdownAttachments(doc);
+    var converted = convertToMarkdownAttachments(doc);
     var docFolder = exportFolder.createFolder(doc.getName());
     convertedDocNames += doc.getName() + "\n";
-    for (var j in attachments) {
-      var attachment = attachments[j];
-      docFolder.createFile(attachment.fileName, attachment.content, attachment.mimeType);
-    }
-  }
 
+    // Write all files to target folder
+    for(var file in converted.files) {
+      file = converted.files[file];
+      var blob = file.blob.copyBlob();
+      var name = file.name; 
+      blob.setName(name); 
+      docFolder.createFile(blob); 
+    }
+    
+    // Write markdown file to target folder
+    docFolder.createFile(doc.getName() + ".md", converted.markdown, "text/x-markdown");  
+  }
+  
   //FIXME display some other way? Browser only works from a spreadsheet!
   //Browser.msgBox("Export complete", "Converted documents:\n" + convertedDocNames, Browser.Buttons.OK)
 }
 
+var exportFolderPrefix = "ExportedMarkdown-";
+
+function exportFolderName() {
+  var timeStamp = Utilities.formatDate(new Date(), "GMT", "yyyy-MM-dd'T'HH:mm:ss'Z'");
+  return exportFolderPrefix + timeStamp;
+}
+
 function mailActiveDocumentAsMarkdown() {
   var doc = DocumentApp.getActiveDocument();
-  var attachments = convertToMarkdownAttachments(doc);
+  var attachments = convertToMarkdownAttachments(doc).attachments;
   mailWithAttachments(doc, attachments);
 }
 
@@ -74,6 +110,7 @@ function convertToMarkdownAttachments(document) {
   var srcIndent = "";
   
   var attachments = [];
+  var files = [];
   
   // Walk through all the child elements of the doc.
   for (var i = 0; i < numChildren; i++) {
@@ -113,6 +150,12 @@ function convertToMarkdownAttachments(document) {
             "fileName": result.images[j].name,
             "mimeType": result.images[j].type,
             "content": result.images[j].bytes } );
+          
+          files.push( {
+            "name" : result.images[j].name,
+            "blob" : result.images[j].blob
+          });
+
         }
       }
     } else if (inSrc) { // support empty lines inside source code
@@ -123,7 +166,7 @@ function convertToMarkdownAttachments(document) {
   
   attachments.push({"fileName":document.getName()+".md", "mimeType": "text/x-markdown", "content": text});
 
-  return attachments;
+  return {attachments: attachments, files: files, markdown: text};
 }
 
 function escapeHTML(text) {
@@ -192,6 +235,7 @@ function processParagraph(index, element, inSrc, imageCounter, listCounters) {
       textElements.push('![image alt text]('+name+')');
       result.images.push( {
         "bytes": element.getChild(i).getBlob().getBytes(), 
+        "blob": element.getChild(i).getBlob(), 
         "type": contentType, 
         "name": name});
     } else if (t === DocumentApp.ElementType.PAGE_BREAK) {
