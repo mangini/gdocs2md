@@ -1,23 +1,10 @@
 gdoc-markdown-converter
 ========
 
-A simple Google Apps script to convert a properly formatted Google Drive Document to the markdown (.md) format. 
+A Google Docs add-on to convert a properly formatted Google Drive Document to the markdown (.md) format. Then either download it or add it to your Google Drive. It also attached images which are 
+available inside the doc. 
 
 ## Usage
-
-  * Adding this script to your doc (once per doc):
-    * Open your Google Drive document (http://drive.google.com)
-    * Tools -> Script Manager > New
-    * Select "Blank Project", then paste this code in and save.
-    * Clear the myFunction() default empty function and paste the contents of [converttomarkdown.gapps](https://raw.github.com/mangini/gdocs2md/master/converttomarkdown.gapps) into the code editor
-    * File -> Save
-    
-  * Running the script (run as many times as you want):
-    - Tools > Script Manager
-    - Select "ConvertToMarkdown" function.
-    - Click Run button (First run will require you to authorize it. Authorize and run again)
-    - Converted doc with images attached will be emailed to you. Subject will be "[MARKDOWN_MAKER]...".
-
 
 ## Interpreted formats
   * Text:
@@ -40,12 +27,18 @@ A simple Google Apps script to convert a properly formatted Google Drive Documen
       * **NEW**: Simple `<table>` processing
   * "--- jsperf `<testID>`" is replaced by an iframe that shows an interactive chart of a JSPerf test. The `<testID>` is the last part of the URL of the Browserscope anchor in your JSPerf test. Something like `"agt1YS1wcm9maWxlcnINCxIEVGVzdBjlm_EQDA"` in the URL `http://www.browserscope.org/user/tests/table/agt1YS1wcm9maWxlcnINCxIEVGVzdBjlm_EQDA`
  
-
-
 ## CONTRIBUTORS
+
+* Supreet Pal Singh - supreetpal.in
+* Siva Subramanium - [Github](//github.com/subramaniashiva)
+
+## CREDITS
 
 * Renato Mangini - [G+](//google.com/+renatomangini) - [Github](//github.com/mangini)
 * Ed Bacher - [G+](//plus.google.com/106923847899206957842) - [Github](//github.com/evbacher)
+
+As this project was forked from their original script available at:
+https://github.com/mangini/gdocs2md
 
 ## LICENSE
 
