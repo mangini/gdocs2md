@@ -1,14 +1,46 @@
 /*
-Usage: 
-  Adding this script to your doc: 
+Usage:
+  Adding this script to your doc:
     - Tools > Script Manager > New
     - Select "Blank Project", then paste this code in and save.
   Running the script:
-    - Tools > Script Manager
-    - Select "ConvertToMarkdown" function.
-    - Click Run button.
-    - Converted doc will be mailed to you. Subject will be "[MARKDOWN_MAKER]...".
+    - Add-ons > ConverToMarkDown
+    - Select "Add To Drive" function.
+    - The document will be converted into a MD file and it will be placed in the folder called "Common"
+    - You can also view or donwload the converted file from the pop up, once the document is converted.
 */
+
+/**
+ * Creates a menu entry in the Google Docs UI when the document is opened.
+ *
+ * @param {object} e The event parameter for a simple onOpen trigger. To
+ *     determine which authorization mode (ScriptApp.AuthMode) the trigger is
+ *     running in, inspect e.authMode.
+ */
+function onOpen(e) {
+  DocumentApp.getUi().createAddonMenu()
+      .addItem('Add To Drive', 'ConvertToMarkdown')
+  .addItem('Download MD file', 'downloadMdFile')
+      .addToUi();
+}
+
+/**
+ * Runs when the add-on is installed.
+ *
+ * @param {object} e The event parameter for a simple onInstall trigger. To
+ *     determine which authorization mode (ScriptApp.AuthMode) the trigger is
+ *     running in, inspect e.authMode. (In practice, onInstall triggers always
+ *     run in AuthMode.FULL, but onOpen triggers may be AuthMode.LIMITED or
+ *     AuthMode.NONE.)
+ */
+function onInstall(e) {
+  onOpen(e);
+}
+
+function doGet() {
+  ConvertToMarkdown();
+}
+
 
 function ConvertToMarkdown() {
   var numChildren = DocumentApp.getActiveDocument().getActiveSection().getNumChildren();
@@ -19,9 +51,21 @@ function ConvertToMarkdown() {
   var globalListCounters = {};
   // edbacher: added a variable for indent in src <pre> block. Let style sheet do margin.
   var srcIndent = "";
-  
+
   var attachments = [];
-  
+  var file;
+  var commonFolder;
+  var folder;
+  var folderName;
+  var blob;
+  var content_type;
+  var suffix;
+  var image_name;
+  var photo;
+
+  //Change this value to save the document in a different folder
+  var commonFolderName = "xt-docs-md-files";
+
   // Walk through all the child elements of the doc.
   for (var i = 0; i < numChildren; i++) {
     var child = DocumentApp.getActiveDocument().getActiveSection().getChild(i);
@@ -53,7 +97,7 @@ function ConvertToMarkdown() {
       } else if (result.text && result.text.length>0) {
         text+=result.text+"\n\n";
       }
-      
+
       if (result.images && result.images.length>0) {
         for (var j=0; j<result.images.length; j++) {
           attachments.push( {
@@ -65,16 +109,124 @@ function ConvertToMarkdown() {
     } else if (inSrc) { // support empty lines inside source code
       text+='\n';
     }
-      
+
   }
-  
-  attachments.push({"fileName":DocumentApp.getActiveDocument().getName()+".md", "mimeType": "text/plain", "content": text});
-  
-  MailApp.sendEmail(Session.getActiveUser().getEmail(), 
-                    "[MARKDOWN_MAKER] "+DocumentApp.getActiveDocument().getName(), 
-                    "Your converted markdown document is attached (converted from "+DocumentApp.getActiveDocument().getUrl()+")"+
-                    "\n\nDon't know how to use the format options? See http://github.com/mangini/gdocs2md\n",
-                    { "attachments": attachments });
+
+  //Checking if the common folder is present in user's google drive. If not creating it.
+  if(checkIfFolderExists(commonFolderName)) {
+    commonFolder = DocsList.getFolder(commonFolderName);
+  }
+  else {
+    commonFolder = DocsList.createFolder(commonFolderName);
+  }
+  //Checking if a folder with the current file name is present within the common folder. If not creating it.
+  folderName = DocumentApp.getActiveDocument().getName();
+  folder = checkIfFolderExistsInParent(commonFolder, folderName);
+  if(!folder) {
+    folder = commonFolder.createFolder(folderName);
+  }
+  //Checking if MD file with same name is already present inside that folder. If present it will override the older file. If not it will create the new file.
+  file = checkIfFileExists(folder, DocumentApp.getActiveDocument().getName()+".md");
+  if(file) {
+    file.replace(text);
+  }
+  else {
+    file = DocsList.createFile(DocumentApp.getActiveDocument().getName()+".md", text,'text/plain');
+    file.addToFolder(folder);
+  }
+  //If there are any attachments in the file, it has to be saved in the same directory.
+  //Due to this issue [http://code.google.com/p/google-apps-script-issues/issues/detail?id=1239], image files are created using blob. and replaced using Drive API.
+  if(attachments.length > 0) {
+    for(var iterator = 0; iterator < attachments.length; iterator++) {
+      blob = attachments[iterator].content;
+      content_type = blob.getContentType()
+      suffix = content_type.split("/")[1] //e.g gif/jpg or png
+      image_name = "test.png" //Invent a name, the blob seems to need it?
+      blob.setName(image_name);
+      try{
+        image_name = "images_" + iterator + "." + suffix;
+        photo = checkIfFileExists(folder, image_name);
+        if(photo) {
+          //photo.setTrashed(true);
+          //photo = folder.createFile(blob);
+          Drive.Files.remove(photo.getId());
+          photo = folder.createFile(blob);
+        }
+        else {
+          photo = folder.createFile(blob);
+        }
+        photo.rename(image_name);
+      }
+      catch(e){
+        Logger.log( "Image problem: " + e )
+      }
+
+    }
+  }
+  return file;
+}
+
+
+/* This function converts the current open document into an MD file and saves it in the common folder. It will then show you the pop up to download the MD file */
+function downloadMdFile() {
+  var file = ConvertToMarkdown();
+
+  DocumentApp.getUi().showDialog(
+      HtmlService
+    .createHtmlOutput('<a href="https://docs.google.com/a/fusioncharts.com/uc?export=download&id='+file.getId()+'">Download the converted MD file</a>')
+          .setTitle('Download Link for MD file')
+          .setWidth(400 /* pixels */)
+          .setHeight(100 /* pixels */));
+}
+/* This function checks if there is a folder as given in the parameter exists in Google Drive */
+function checkIfFolderExists(folderName) {
+  var exist = true;
+  try {
+    var testFolder = DocsList.getFolder(folderName);
+  }
+  catch(err) {
+    exist=false;
+  }
+  return exist;
+}
+/* This function checks if there is a folder with the name "folderName" exists within "parentFolder" */
+/* If the folder is present, it will return the folder, else it will return false */
+function checkIfFolderExistsInParent(parentFolder, folderName) {
+  var exist = true;
+  try {
+    var folderCollection = parentFolder.getFolders();
+    if(folderCollection.length == 0 )
+      exist = false;
+    else {
+      for(var i =0; i < folderCollection.length; i++) {
+        if(folderCollection[i].getName() == folderName) {
+          exist = folderCollection[i];
+          return exist;
+        }
+      }
+    }
+    exist = false;
+  }
+  catch(err) {
+    exist=false;
+  }
+  return exist;
+}
+/* This function checks if there is a file as given in the parameter exists in Google Drive */
+function checkIfFileExists(folder, fileName) {
+  var exist = true;
+  try {
+    //var testFolder = DocsList.getFolder(folderName);
+    var testFile = folder.find(fileName);
+    if(testFile.length > 0)
+      exist = testFile[0];
+    else
+      exist = false;
+  }
+  catch(err) {
+    exist=false;
+  }
+  return exist;
 }
 
 function escapeHTML(text) {
@@ -86,20 +238,20 @@ function processParagraph(index, element, inSrc, imageCounter, listCounters) {
   // First, check for things that require no processing.
   if (element.getNumChildren()==0) {
     return null;
-  }  
+  }
   // Punt on TOC.
   if (element.getType() === DocumentApp.ElementType.TABLE_OF_CONTENTS) {
     return {"text": "[[TOC]]"};
   }
-  
+
   // Set up for real results.
   var result = {};
   var pOut = "";
   var textElements = [];
   var imagePrefix = "image_";
-  
+
   // Handle Table elements. Pretty simple-minded now, but works for simple tables.
-  // Note that Markdown does not process within block-level HTML, so it probably 
+  // Note that Markdown does not process within block-level HTML, so it probably
   // doesn't make sense to add markup within tables.
   if (element.getType() === DocumentApp.ElementType.TABLE) {
     textElements.push("<table>\n");
@@ -114,11 +266,11 @@ function processParagraph(index, element, inSrc, imageCounter, listCounters) {
     }
     textElements.push("</table>\n");
   }
-  
+
   // Process various types (ElementType).
   for (var i = 0; i < element.getNumChildren(); i++) {
     var t=element.getChild(i).getType();
-    
+
     if (t === DocumentApp.ElementType.TABLE_ROW) {
       // do nothing: already handled TABLE_ROW
     } else if (t === DocumentApp.ElementType.TEXT) {
@@ -142,8 +294,8 @@ function processParagraph(index, element, inSrc, imageCounter, listCounters) {
       imageCounter++;
       textElements.push('![image alt text]('+name+')');
       result.images.push( {
-        "bytes": element.getChild(i).getBlob().getBytes(), 
-        "type": contentType, 
+        "bytes": element.getChild(i).getBlob(),
+        "type": contentType,
         "name": name});
     } else if (t === DocumentApp.ElementType.PAGE_BREAK) {
       // ignore
@@ -161,7 +313,7 @@ function processParagraph(index, element, inSrc, imageCounter, listCounters) {
     // Isn't result empty now?
     return result;
   }
-  
+
   // evb: Add source pretty too. (And abbreviations: src and srcp.)
   // process source code block:
   if (/^\s*---\s+srcp\s*$/.test(pOut) || /^\s*---\s+source pretty\s*$/.test(pOut)) {
@@ -182,7 +334,7 @@ function processParagraph(index, element, inSrc, imageCounter, listCounters) {
   } else {
 
     prefix = findPrefix(inSrc, element, listCounters);
-  
+
     var pOut = "";
     for (var i=0; i<textElements.length; i++) {
       pOut += processTextElement(inSrc, textElements[i]);
@@ -190,10 +342,10 @@ function processParagraph(index, element, inSrc, imageCounter, listCounters) {
 
     // replace Unicode quotation marks
     pOut = pOut.replace('\u201d', '"').replace('\u201c', '"');
- 
+
     result.text = prefix+pOut;
   }
-  
+
   return result;
 }
 
@@ -242,12 +394,12 @@ function processTextElement(inSrc, txt) {
   if (typeof(txt) === 'string') {
     return txt;
   }
-  
+
   var pOut = txt.getText();
   if (! txt.getTextAttributeIndices) {
     return pOut;
   }
-  
+
   var attrs=txt.getTextAttributeIndices();
   var lastOff=pOut.length;
 
