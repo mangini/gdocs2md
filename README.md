@@ -18,11 +18,14 @@ available inside the doc.
     * Click on the Add-ons menu, you will see an add-on by the name of the project that you have created while installing.
     * Click on "Add To Drive" menu.
     * The file will be converted into an MD file with the name, same as that of the source document.
-    * The converted file will be placed in a folder created with the name same as that of source document, under the folder "xt-docs-md-files"
+    * The converted file will be placed in a folder created with the name same as that of source document, under the folder "Google Docs to Markdown"
     * If the above said folders are not there, the script will automatically create it.
     * If any inline image are there, it will also be placed within the folder where the converted MD file is placed already.
     * Please note that the converted images cannot be viewed directly from google drive. You have to download to view it because of this issue [http://code.google.com/p/google-apps-script-issues/issues/detail?id=1239]
     * To convert multiple documents, it is better to create this as a google docs plugin and publish it within your own domain after getting approval from google.
+    * To change the otuput folder, click on the "Change Output Folder" menu. It will show you the default output folder and a text box to change it.
+    * Type in the new output folder name and press 'OK'. All the converted MD files in future will be placed under this new common folder. If the folder doesn't exist, it will create when the next time you convert any MD file.
+    * Please note that if you change the output folder name in plugin, it will be reflected across all documents.
     * Cheers, Happy Converting.
 
 ## Interpreted formats
