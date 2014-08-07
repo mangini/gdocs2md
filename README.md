@@ -22,8 +22,9 @@ available inside the doc.
     * If the above said folders are not there, the script will automatically create it.
     * If any inline image are there, it will also be placed within the folder where the converted MD file is placed already.
     * Please note that the converted images cannot be viewed directly from google drive. You have to download to view it because of this issue [http://code.google.com/p/google-apps-script-issues/issues/detail?id=1239]
-    * To convert multiple documents, it is better to create this as a google docs plugina and publish it within your own domain after getting approval from google.
-    * Cheers, Happy Converting !
+    * To convert multiple documents, it is better to create this as a google docs plugin and publish it within your own domain after getting approval from google.
+    * Cheers, Happy Converting.
+
 ## Interpreted formats
   * Text:
     * paragraphs are separated by two newlines
