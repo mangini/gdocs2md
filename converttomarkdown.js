@@ -55,7 +55,6 @@ var config = (function() {
  *     determine which authorization mode (ScriptApp.AuthMode) the trigger is
  *     running in, inspect e.authMode.
  */
-
 function onOpen(e) {
     DocumentApp.getUi().createAddonMenu()
         .addItem('Add To Drive', 'ConvertToMarkdown')
@@ -73,7 +72,6 @@ function onOpen(e) {
  *     run in AuthMode.FULL, but onOpen triggers may be AuthMode.LIMITED or
  *     AuthMode.NONE.)
  */
-
 function onInstall(e) {
     onOpen(e);
 }
@@ -84,9 +82,7 @@ function doGet() {
 
 /* This function converts the google document into mark down and saves it in the common folder as configured by the user.
 It will also save any inline images in the same folder where converted MD file is placed */
-
 function ConvertToMarkdown() {
-    var numChildren = DocumentApp.getActiveDocument().getActiveSection().getNumChildren();
     var text = "";
     var inSrc = false;
     var inClass = false;
@@ -106,112 +102,132 @@ function ConvertToMarkdown() {
     var image_name;
     var photo;
 
-    //By default, it saves in the folder named xt-docs-md-files. Change this value to save the document in a different folder
-    var commonFolderName = config.getInstance().getCommonFolder();
+    try {
+        var numChildren = DocumentApp.getActiveDocument().getActiveSection().getNumChildren();
+        //By default, it saves in the folder named xt-docs-md-files. Change this value to save the document in a different folder
+        var commonFolderName = config.getInstance().getCommonFolder();
 
-    // Walk through all the child elements of the doc.
-    for (var i = 0; i < numChildren; i++) {
-        var child = DocumentApp.getActiveDocument().getActiveSection().getChild(i);
-        var result = processParagraph(i, child, inSrc, globalImageCounter, globalListCounters);
-        globalImageCounter += (result && result.images) ? result.images.length : 0;
-        if (result !== null) {
-            if (result.sourcePretty === "start" && !inSrc) {
-                inSrc = true;
-                text += "<pre class=\"prettyprint\">\n";
-            } else if (result.sourcePretty === "end" && inSrc) {
-                inSrc = false;
-                text += "</pre>\n\n";
-            } else if (result.source === "start" && !inSrc) {
-                inSrc = true;
-                text += "<pre>\n";
-            } else if (result.source === "end" && inSrc) {
-                inSrc = false;
-                text += "</pre>\n\n";
-            } else if (result.inClass === "start" && !inClass) {
-                inClass = true;
-                text += "<div class=\"" + result.className + "\">\n";
-            } else if (result.inClass === "end" && inClass) {
-                inClass = false;
-                text += "</div>\n\n";
-            } else if (inClass) {
-                text += result.text + "\n\n";
-            } else if (inSrc) {
-                text += (srcIndent + escapeHTML(result.text) + "\n");
-            } else if (result.text && result.text.length > 0) {
-                text += result.text + "\n\n";
-            }
-
-            if (result.images && result.images.length > 0) {
-                for (var j = 0; j < result.images.length; j++) {
-                    attachments.push({
-                        "fileName": result.images[j].name,
-                        "mimeType": result.images[j].type,
-                        "content": result.images[j].bytes
-                    });
+        // Walk through all the child elements of the doc.
+        for (var i = 0; i < numChildren; i++) {
+            var child = DocumentApp.getActiveDocument().getActiveSection().getChild(i);
+            var result = processParagraph(i, child, inSrc, globalImageCounter, globalListCounters);
+            globalImageCounter += (result && result.images) ? result.images.length : 0;
+            if (result !== null) {
+                if (result.sourcePretty === "start" && !inSrc) {
+                    inSrc = true;
+                    text += "<pre class=\"prettyprint\">\n";
+                } else if (result.sourcePretty === "end" && inSrc) {
+                    inSrc = false;
+                    text += "</pre>\n\n";
+                } else if (result.source === "start" && !inSrc) {
+                    inSrc = true;
+                    text += "<pre>\n";
+                } else if (result.source === "end" && inSrc) {
+                    inSrc = false;
+                    text += "</pre>\n\n";
+                } else if (result.inClass === "start" && !inClass) {
+                    inClass = true;
+                    text += "<div class=\"" + result.className + "\">\n";
+                } else if (result.inClass === "end" && inClass) {
+                    inClass = false;
+                    text += "</div>\n\n";
+                } else if (inClass) {
+                    text += result.text + "\n\n";
+                } else if (inSrc) {
+                    text += (srcIndent + escapeHTML(result.text) + "\n");
+                } else if (result.text && result.text.length > 0) {
+                    text += result.text + "\n\n";
                 }
-            }
-        } else if (inSrc) { // support empty lines inside source code
-            text += '\n';
-        }
 
-    }
-
-    //Checking if the common folder is present in user's google drive. If not creating it.
-    if (checkIfFolderExists(commonFolderName)) {
-        commonFolder = DocsList.getFolder(commonFolderName);
-    } else {
-        commonFolder = DocsList.createFolder(commonFolderName);
-    }
-
-    //Checking if a folder with the current file name is present within the common folder. If not creating it.
-    folderName = DocumentApp.getActiveDocument().getName();
-    folder = checkIfFolderExistsInParent(commonFolder, folderName);
-    if (!folder) {
-        folder = commonFolder.createFolder(folderName);
-    }
-
-    //Checking if MD file with same name is already present inside that folder. If present it will override the older file. If not it will create the new file.
-    file = checkIfFileExists(folder, DocumentApp.getActiveDocument().getName() + ".md");
-    if (file) {
-        file.replace(text);
-    } else {
-        file = DocsList.createFile(DocumentApp.getActiveDocument().getName() + ".md", text, 'text/plain');
-        file.addToFolder(folder);
-    }
-
-    //If there are any attachments in the file, it has to be saved in the same directory.
-    //Due to this issue [http://code.google.com/p/google-apps-script-issues/issues/detail?id=1239], image files are created using blob. and replaced using Drive API.
-    if (attachments.length > 0) {
-        for (var iterator = 0; iterator < attachments.length; iterator++) {
-            blob = attachments[iterator].content;
-            content_type = blob.getContentType()
-            suffix = content_type.split("/")[1] //e.g gif/jpg or png
-            image_name = "test.png" //Invent a name, the blob seems to need it?
-            blob.setName(image_name);
-            try {
-                image_name = "images_" + iterator + "." + suffix;
-                photo = checkIfFileExists(folder, image_name);
-                if (photo) {
-                    //photo.setTrashed(true);
-                    //photo = folder.createFile(blob);
-                    Drive.Files.remove(photo.getId());
-                    photo = folder.createFile(blob);
-                } else {
-                    photo = folder.createFile(blob);
+                if (result.images && result.images.length > 0) {
+                    for (var j = 0; j < result.images.length; j++) {
+                        attachments.push({
+                            "fileName": result.images[j].name,
+                            "mimeType": result.images[j].type,
+                            "content": result.images[j].bytes
+                        });
+                    }
                 }
-                photo.rename(image_name);
-            } catch (e) {
-                Logger.log("Image problem: " + e)
+            } else if (inSrc) { // support empty lines inside source code
+                text += '\n';
             }
 
         }
+
+        //Checking if the common folder is present in user's google drive. If not creating it.
+        if (checkIfFolderExists(commonFolderName)) {
+            commonFolder = DocsList.getFolder(commonFolderName);
+        } else {
+            commonFolder = DocsList.createFolder(commonFolderName);
+        }
+
+        //Checking if a folder with the current file name is present within the common folder. If not creating it.
+        folderName = DocumentApp.getActiveDocument().getName();
+        folder = checkIfFolderExistsInParent(commonFolder, folderName);
+        if (!folder) {
+            folder = commonFolder.createFolder(folderName);
+        }
+
+        //Checking if MD file with same name is already present inside that folder. If present it will override the older file. If not it will create the new file.
+        file = checkIfFileExists(folder, DocumentApp.getActiveDocument().getName() + ".md");
+        if (file) {
+            file.replace(text);
+        } else {
+            file = DocsList.createFile(DocumentApp.getActiveDocument().getName() + ".md", text, 'text/plain');
+            file.addToFolder(folder);
+        }
+
+        //If there are any attachments in the file, it has to be saved in the same directory.
+        //Due to this issue [http://code.google.com/p/google-apps-script-issues/issues/detail?id=1239], image files are created using blob. and replaced using Drive API.
+        if (attachments.length > 0) {
+            for (var iterator = 0; iterator < attachments.length; iterator++) {
+                blob = attachments[iterator].content;
+                content_type = blob.getContentType()
+                suffix = content_type.split("/")[1] //e.g gif/jpg or png
+                image_name = "test.png" //Invent a name, the blob seems to need it?
+                blob.setName(image_name);
+                try {
+                    image_name = "images_" + iterator + "." + suffix;
+                    photo = checkIfFileExists(folder, image_name);
+                    if (photo) {
+                        //photo.setTrashed(true);
+                        //photo = folder.createFile(blob);
+                        Drive.Files.remove(photo.getId());
+                        photo = folder.createFile(blob);
+                    } else {
+                        photo = folder.createFile(blob);
+                    }
+                    photo.rename(image_name);
+                } catch (e) {
+                    throw ("Error in saving attached images : " + e);
+                }
+
+            }
+        }
+    } catch (e) {
+        var errorMsg = "";
+        //While displaying error message, we display the last converted text, so that the users can know, after which line the conversion failed.
+        //Check if there is any last converted text. If so take the last sentence from the converted text. If not, just display the error message.
+        if (text != null && text.length != 0 && text.trim() !== "") {
+            var sentence = text.split(".");
+            if (sentence.length > 1) {
+                errorMsg = "Error after the line : \"" + sentence[sentence.length - 2] + "\".\n\n" + e;
+            } else if (sentence.length == 1) {
+                errorMsg = "Error after the line : \"" + sentence[sentence.length - 1] + "\".\n\n" + e;
+            } else if (sentence.length == 0) {
+                errorMsg = "Error after the text : \"" + text + "\".\n\n" + e;;
+            }
+        } else {
+            errorMsg = e;
+        }
+        //Showing the error message in alert window.
+        DocumentApp.getUi().alert("Error", errorMsg, DocumentApp.getUi().ButtonSet.OK);
     }
     return file;
 }
 
 
 /* This function converts the current open document into an MD file and saves it in the common folder. It will then show you the pop up to download the MD file */
-
 function downloadMdFile() {
     var file = ConvertToMarkdown();
 
@@ -225,7 +241,6 @@ function downloadMdFile() {
 
 
 /* This function checks if there is a folder as given in the parameter exists in Google Drive */
-
 function checkIfFolderExists(folderName) {
     var exist = true;
     try {
@@ -236,7 +251,6 @@ function checkIfFolderExists(folderName) {
     return exist;
 }
 /* This function chages the output folder into User defined folder */
-
 function changeOutputFolder() {
 
     var ui = DocumentApp.getUi(); // Same variations.
@@ -267,7 +281,6 @@ function changeOutputFolder() {
 }
 /* This function checks if there is a folder with the name "folderName" exists within "parentFolder" */
 /* If the folder is present, it will return the folder, else it will return false */
-
 function checkIfFolderExistsInParent(parentFolder, folderName) {
     var exist = true;
     try {
@@ -289,7 +302,6 @@ function checkIfFolderExistsInParent(parentFolder, folderName) {
     return exist;
 }
 /* This function checks if there is a file as given in the parameter exists in Google Drive */
-
 function checkIfFileExists(folder, fileName) {
     var exist = true;
     try {
@@ -310,7 +322,6 @@ function escapeHTML(text) {
 }
 
 // Process each child element (not just paragraphs).
-
 function processParagraph(index, element, inSrc, imageCounter, listCounters) {
     // First, check for things that require no processing.
     if (element.getNumChildren() == 0) {
@@ -384,7 +395,9 @@ function processParagraph(index, element, inSrc, imageCounter, listCounters) {
         } else if (t === DocumentApp.ElementType.FOOTNOTE) {
             textElements.push(' (NOTE: ' + element.getChild(i).getFootnoteContents().getText() + ')');
         } else {
-            throw "Paragraph " + index + " of type " + element.getType() + " has an unsupported child: " + t + " " + (element.getChild(i)["getText"] ? element.getChild(i).getText() : '') + " index=" + index;
+            //throw "Paragraph "+index+" of type "+element.getType()+" has an unsupported child: "
+            //+t+" "+(element.getChild(i)["getText"] ? element.getChild(i).getText():'')+" index="+result;
+            throw "Unsupported format in current file :" + t + " " + (element.getChild(i)["getText"] ? element.getChild(i).getText() : '') + ". Cannot be converted into an MD file";
         }
     }
 
@@ -429,7 +442,6 @@ function processParagraph(index, element, inSrc, imageCounter, listCounters) {
 }
 
 // Add correct prefix to list items.
-
 function findPrefix(inSrc, element, listCounters) {
     var prefix = "";
     if (!inSrc) {
