@@ -187,7 +187,7 @@ function ConvertToMarkdown() {
                 image_name = "test.png" //Invent a name, the blob seems to need it?
                 blob.setName(image_name);
                 try {
-                    image_name = "images_" + iterator + "." + suffix;
+                    image_name = "image_" + iterator + "." + suffix;
                     photo = checkIfFileExists(folder, image_name);
                     if (photo) {
                         //photo.setTrashed(true);
