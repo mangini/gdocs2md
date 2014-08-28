@@ -1,23 +1,32 @@
-gdocs2md
+gdoc-markdown-converter
 ========
 
-A simple Google Apps script to convert a properly formatted Google Drive Document to the markdown (.md) format. 
+A Google Docs add-on to convert a properly formatted Google Drive Document to the markdown (.md) format. Then either download it or add it to your Google Drive. It also attached images which are
+available inside the doc.
 
 ## Usage
-
-  * Adding this script to your doc (once per doc):
-    * Open your Google Drive document (http://drive.google.com)
-    * Tools -> Script Manager > New
-    * Select "Blank Project", then paste this code in and save.
-    * Clear the myFunction() default empty function and paste the contents of [converttomarkdown.gapps](https://raw.github.com/mangini/gdocs2md/master/converttomarkdown.gapps) into the code editor
-    * File -> Save
-    
-  * Running the script (run as many times as you want):
-    - Tools > Script Manager
-    - Select "ConvertToMarkdown" function.
-    - Click Run button (First run will require you to authorize it. Authorize and run again)
-    - Converted doc with images attached will be emailed to you. Subject will be "[MARKDOWN_MAKER]...".
-
+  * How to install ?
+    * Open any google document from your drive that can be converted into an MD file
+    * Click on Tools -> Script Editor
+    * Click on "Blank Project"
+    * Delete all the contents in the file code.gs and paste all the contents from converttomarkdown.gapps file
+    * Save the project and the file
+    * There will be a drop down saying "Select Function"
+    * Select the function "ConvertToMarkDown" from the drop down.
+  * How to Use ?
+    * After creating the project as said above, open the document where you have created the scripts.
+    * Click on the Add-ons menu, you will see an add-on by the name of the project that you have created while installing.
+    * Click on "Add To Drive" menu.
+    * The file will be converted into an MD file with the name, same as that of the source document.
+    * The converted file will be placed in a folder created with the name same as that of source document, under the folder "Google Docs to Markdown"
+    * If the above said folders are not there, the script will automatically create it.
+    * If any inline image are there, it will also be placed within the folder where the converted MD file is placed already.
+    * Please note that the converted images cannot be viewed directly from google drive. You have to download to view it because of this issue [http://code.google.com/p/google-apps-script-issues/issues/detail?id=1239]
+    * To convert multiple documents, it is better to create this as a google docs plugin and publish it within your own domain after getting approval from google.
+    * To change the otuput folder, click on the "Change Output Folder" menu. It will show you the default output folder and a text box to change it.
+    * Type in the new output folder name and press 'OK'. All the converted MD files in future will be placed under this new common folder. If the folder doesn't exist, it will create when the next time you convert any MD file.
+    * Please note that if you change the output folder name in plugin, it will be reflected across all documents.
+    * Cheers, Happy Converting.
 
 ## Interpreted formats
   * Text:
@@ -32,28 +41,34 @@ A simple Google Apps script to convert a properly formatted Google Drive Documen
     * images are correctly extracted and sent as attachments
   * Blocks:
     * Table of contents is replaced by `[[TOC]]`
-    * blocks of text delimited by "--- class whateverclassnameyouwant" and "---" are converted to `<div class="whateverclassnameyouwant"></div>` 
-    * Source code: 
+    * blocks of text delimited by "--- class whateverclassnameyouwant" and "---" are converted to `<div class="whateverclassnameyouwant"></div>`
+    * Source code:
       * **UPDATED**: blocks of text delimited by "--- source code" or "--- src" and "---" are converted to `<pre></pre>`
       * **NEW**: blocks of text delimited by "--- source pretty" or "--- srcp" and "---" are converted to `<pre class="prettyprint"></pre>`
     * Tables:
       * **NEW**: Simple `<table>` processing
   * "--- jsperf `<testID>`" is replaced by an iframe that shows an interactive chart of a JSPerf test. The `<testID>` is the last part of the URL of the Browserscope anchor in your JSPerf test. Something like `"agt1YS1wcm9maWxlcnINCxIEVGVzdBjlm_EQDA"` in the URL `http://www.browserscope.org/user/tests/table/agt1YS1wcm9maWxlcnINCxIEVGVzdBjlm_EQDA`
- 
-
 
 ## CONTRIBUTORS
+
+* Supreet Pal Singh - supreetpal.in
+* Siva Subramaniam - [Github](//github.com/subramaniashiva)
+
+## CREDITS
 
 * Renato Mangini - [G+](//google.com/+renatomangini) - [Github](//github.com/mangini)
 * Ed Bacher - [G+](//plus.google.com/106923847899206957842) - [Github](//github.com/evbacher)
 
+As this project was forked from their original script available at:
+https://github.com/mangini/gdocs2md
+
 ## LICENSE
 
-Use this script at your will, on any document you want and for any purpose, commercial or not. 
-The MarkDown files generated by this script are not considered derivative work and 
-don't require any attribution to the owners of this script. 
+Use this script at your will, on any document you want and for any purpose, commercial or not.
+The MarkDown files generated by this script are not considered derivative work and
+don't require any attribution to the owners of this script.
 
-If you want to modify and redistribute the script (not the converted documents - those are yours), 
+If you want to modify and redistribute the script (not the converted documents - those are yours),
 just keep a reference to this repo or to the license info below:
 
 ```
