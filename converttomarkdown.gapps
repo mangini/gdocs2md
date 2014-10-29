@@ -17,6 +17,7 @@ function ConvertToMarkdown() {
   var inClass = false;
   var globalImageCounter = 0;
   var globalListCounters = {};
+  var globalFootnoteList = [];
   // edbacher: added a variable for indent in src <pre> block. Let style sheet do margin.
   var srcIndent = "";
   
@@ -25,7 +26,7 @@ function ConvertToMarkdown() {
   // Walk through all the child elements of the doc.
   for (var i = 0; i < numChildren; i++) {
     var child = DocumentApp.getActiveDocument().getActiveSection().getChild(i);
-    var result = processParagraph(i, child, inSrc, globalImageCounter, globalListCounters);
+    var result = processParagraph(i, child, inSrc, globalImageCounter, globalListCounters, globalFootnoteList);
     globalImageCounter += (result && result.images) ? result.images.length : 0;
     if (result!==null) {
       if (result.sourcePretty==="start" && !inSrc) {
@@ -67,6 +68,13 @@ function ConvertToMarkdown() {
     }
       
   }
+
+  if (globalFootnoteList.length>0) {
+    text+='\n\n';
+    for (var i = 1; i <= globalFootnoteList.length; i++) {
+      text+='['+i+']: '+globalFootnoteList[i-1]+'\n\n';
+    }
+  }
   
   attachments.push({"fileName":DocumentApp.getActiveDocument().getName()+".md", "mimeType": "text/plain", "content": text});
   
@@ -82,7 +90,7 @@ function escapeHTML(text) {
 }
 
 // Process each child element (not just paragraphs).
-function processParagraph(index, element, inSrc, imageCounter, listCounters) {
+function processParagraph(index, element, inSrc, imageCounter, listCounters, footnoteList) {
   // First, check for things that require no processing.
   if (element.getNumChildren()==0) {
     return null;
@@ -150,7 +158,8 @@ function processParagraph(index, element, inSrc, imageCounter, listCounters) {
     } else if (t === DocumentApp.ElementType.HORIZONTAL_RULE) {
       textElements.push('* * *\n');
     } else if (t === DocumentApp.ElementType.FOOTNOTE) {
-      textElements.push(' (NOTE: '+element.getChild(i).getFootnoteContents().getText()+')');
+      footnoteList.push(element.getChild(i).getFootnoteContents().getText());
+      textElements.push('['+footnoteList.length+']');
     } else {
       throw "Paragraph "+index+" of type "+element.getType()+" has an unsupported child: "
       +t+" "+(element.getChild(i)["getText"] ? element.getChild(i).getText():'')+" index="+index;
