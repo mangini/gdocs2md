@@ -159,7 +159,7 @@ function processParagraph(index, element, inSrc, imageCounter, listCounters, foo
       textElements.push('* * *\n');
     } else if (t === DocumentApp.ElementType.FOOTNOTE) {
       footnoteList.push(element.getChild(i).getFootnoteContents().getText());
-      textElements.push('['+footnoteList.length+']');
+      textElements.push(' ['+footnoteList.length+']');
     } else {
       throw "Paragraph "+index+" of type "+element.getType()+" has an unsupported child: "
       +t+" "+(element.getChild(i)["getText"] ? element.getChild(i).getText():'')+" index="+index;
