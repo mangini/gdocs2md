@@ -72,7 +72,7 @@ function ConvertToMarkdown() {
   if (globalFootnoteList.length>0) {
     text+='\n\n';
     for (var i = 1; i <= globalFootnoteList.length; i++) {
-      text+='['+i+']: '+globalFootnoteList[i-1]+'\n\n';
+      text+='['+i+'] '+globalFootnoteList[i-1]+'\n\n';
     }
   }
   
