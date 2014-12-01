@@ -166,7 +166,10 @@ function processParagraph(index, element, inSrc, imageCounter, listCounters) {
   for (var i = 0; i < element.getNumChildren(); i++) {
     var t=element.getChild(i).getType();
     
-    if (t === DocumentApp.ElementType.TABLE_ROW) {
+    if (t === DocumentApp.ElementType.INLINE_DRAWING) {
+      // do nothing substantive: no export as image available for now?
+      textElements.push('\nINLINE_DRAWING - UNSUPPORTED EXPORT\n');
+    } else if (t === DocumentApp.ElementType.TABLE_ROW) {
       // do nothing: already handled TABLE_ROW
     } else if (t === DocumentApp.ElementType.TEXT) {
       var txt=element.getChild(i);
