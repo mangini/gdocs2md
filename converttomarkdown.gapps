@@ -31,7 +31,7 @@ Usage:
     - Tools > Script Editor > New
     - Select "Blank Project", then paste this code in and save eg as "md exporter"
     - Reload the original doc
-  Running the script:
+  Running the script  (first run of each function will require you to authorize it):
     - In the Add-Ons menu, find the new menu eg "md exporter"
     - Select "Email md" to email markdown doc and saved images to yourself
     -- Converted doc will be mailed to you. Subject will be "[MARKDOWN_MAKER]..."

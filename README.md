@@ -4,19 +4,21 @@ gdocs2md
 A simple Google Apps script to convert a properly formatted Google Drive Document to the markdown (.md) format. 
 
 ## Usage
-
-  * Adding this script to your doc (once per doc):
-    * Open your Google Drive document (http://drive.google.com)
-    * Tools -> Script Manager > New
-    * Select "Blank Project", then paste this code in and save.
-    * Clear the myFunction() default empty function and paste the contents of [converttomarkdown.gapps](https://raw.github.com/mangini/gdocs2md/master/converttomarkdown.gapps) into the code editor
-    * File -> Save
+ 
+  * Adding this script to your doc: 
+    * Tools > Script Editor > New
+    * Select "Blank Project"
+    * Clear the example code and paste in the contents of [converttomarkdown.gapps](https://raw.github.com/psychemedia/gdocs2md/master/converttomarkdown.gapps) 
+    * Save with an appropriate project name, eg *md exporter*
+    * Reload the original doc
     
-  * Running the script (run as many times as you want):
-    - Tools > Script Manager
-    - Select "ConvertToMarkdown" function.
-    - Click Run button (First run will require you to authorize it. Authorize and run again)
-    - Converted doc with images attached will be emailed to you. Subject will be "[MARKDOWN_MAKER]...".
+  * Running the script (first run of each function will require you to authorize it):
+    * In the Add-Ons menu, find the new menu eg "md exporter"
+    * Select "Email md" to email markdown doc and saved images to yourself
+        *  Converted doc  with images attached will be mailed to you. Subject will be "[MARKDOWN_MAKER]..."
+    * Select "Save md" to save markdown doc and images to your Google Drive
+        * A new folder with same name as original doc will be created containing the markdown and image files
+
 
 
 ## Interpreted formats
@@ -47,6 +49,8 @@ A simple Google Apps script to convert a properly formatted Google Drive Documen
 * Renato Mangini - [G+](//google.com/+renatomangini) - [Github](//github.com/mangini)
 * Ed Bacher - [G+](//plus.google.com/106923847899206957842) - [Github](//github.com/evbacher)
 
+* Tony Hirst - [Github](//github.com/psychemedia)
+
 ## LICENSE
 
 Use this script at your will, on any document you want and for any purpose, commercial or not. 
@@ -57,7 +61,7 @@ If you want to modify and redistribute the script (not the converted documents -
 just keep a reference to this repo or to the license info below:
 
 ```
-Copyright 2013 Google Inc. All Rights Reserved.
+Original content: Copyright 2013 Google Inc. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
