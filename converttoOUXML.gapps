@@ -207,7 +207,7 @@ function ConvertToOUXML() {
   
   //Hack fixes - bleurghh
   text=text.replace(/<Session>\s*<\/Session>/g,'').replace(/<Section>\s*<\/Section>/g,'').replace(/<SubSection>\s*<\/SubSection>/g,'');
-  
+  text=text.replace(/<Paragraph>\s*<\/Paragraph>/,'').replace('</i><i>','').replace('</b><b>','');
   //replace ampersand
   //text = text.replace(/&amp;/g,"&").replace(/&/g,'&amp;');
   
@@ -381,7 +381,7 @@ function processParagraph(index, element, inSrc, imageCounter, listCounters) {
     //result.text = prefix+pOut+prefix.replace('<','</');
     while (prefix.length){
       var tag=prefix.pop()
-      pOut= tag  +pOut + tag.replace('<','</');
+      if ((pOut) && pOut!=" ") pOut= tag  +pOut + tag.replace('<','</');
     }
     result.text=pOut
   }
@@ -444,16 +444,15 @@ function processTextElement(inSrc, txt) {
   if (! txt.getTextAttributeIndices) {
     return pOut;
   }
-  
+  Logger.log(pOut)
   var attrs=txt.getTextAttributeIndices();
   var lastOff=pOut.length;
-  //This whole thing is broken - becuase the length of pOut keeps changing...
+
   for (var i=attrs.length-1; i>=0; i--) {
     var off=attrs[i];
     var url=txt.getLinkUrl(off);
     var font=txt.getFontFamily(off);
-    var fontColour=txt.getForegroundColor(off);
-
+    Logger.log('i %s, off %s, url %s,font %s',i,off,url,font)
     if (url) {  // start of link
       if (i>=1 && attrs[i-1]==off-1 && txt.getLinkUrl(attrs[i-1])===url) {
         // detect links that are in multiple pieces because of errors on formatting:
@@ -463,6 +462,8 @@ function processTextElement(inSrc, txt) {
       }
       //pOut=pOut.substring(0, off)+'['+pOut.substring(off, lastOff)+']('+url+')'+pOut.substring(lastOff);
       pOut=pOut.substring(0, off)+'<a href="'+url+'">'+pOut.substring(off, lastOff)+'</a>'+pOut.substring(lastOff);
+      Logger.log('wurl1 %s',pOut)
+      lastOff+='<a href=""></a>'.length+url.length;
     } else if (font) {
       if (!inSrc && font===font.COURIER_NEW) {
         while (i>=1 && txt.getFontFamily(attrs[i-1]) && txt.getFontFamily(attrs[i-1])===font.COURIER_NEW) {
@@ -472,11 +473,9 @@ function processTextElement(inSrc, txt) {
         }
         pOut=pOut.substring(0, off)+'<ComputerCode>'+escapeHTML(pOut.substring(off, lastOff))+'</ComputerCode>'+pOut.substring(lastOff);
         
-        //The bold and italic stuff is borked;
       }
+      
     }
-    
-    if (fontColour) pOut=pOut.substring(0, off)+'[AuthorComment]'+pOut.substring(off, lastOff)+'[/AuthorComment]'+pOut.substring(lastOff);
     
     if (txt.isBold(off)) {
       var d1 = "<b>";
@@ -486,9 +485,17 @@ function processTextElement(inSrc, txt) {
         d1 = "<b><i>"; d2 = "</i></b>";
       }
       pOut=pOut.substring(0, off)+d1+pOut.substring(off, lastOff)+d2+pOut.substring(lastOff);
+      lastOff+="<b><i></i></b>".length;
     } else if (txt.isItalic(off)) {
       pOut=pOut.substring(0, off)+'<i>'+pOut.substring(off, lastOff)+'</i>'+pOut.substring(lastOff);
+      lastOff+="<i></i>".length;
     }
+    Logger.log('wurl3 %s',pOut)
+    //This still treats headers as AuthorComment - trap on a better colour? Only certain colours?
+    if (txt.getForegroundColor(off) && (!txt.getLinkUrl(off)) ) {
+      pOut=pOut.substring(0, off)+'<AuthorComment>'+pOut.substring(off, lastOff)+'</AuthorComment>'+pOut.substring(lastOff);
+    }
+    Logger.log('wurl3 %s',pOut)
     lastOff=off;
   }
         
@@ -496,10 +503,10 @@ function processTextElement(inSrc, txt) {
   //HORRIBLE HACK
   //The above is broken, occasionally injecting tags into anchor tag, because the string lengths keep changing
   //Workaround for now...
-  var urlPatch = /<[ib]>(\[AuthorComment\])?(<a [^<]*)<\/[ib]>([^>]*">)/; //<[ib]>?(<a [^<]*)<\/[ib]>([^>]*">); // /<[ib]>(<a [^<]*)<\/[ib]>([^"]*">)/;
-  pOut = pOut.replace(urlPatch, "$1$2$3");
-  urlPatch=/(<a [^\[]*)\[\/AuthorComment\]([^>]*">)/;
-  pOut=pOut.replace(urlPatch, "$1$2");
-  
+  //var urlPatch = /<[ib]>(\[AuthorComment\])?(<a [^<]*)<\/[ib]>([^>]*">)/; //<[ib]>?(<a [^<]*)<\/[ib]>([^>]*">); // /<[ib]>(<a [^<]*)<\/[ib]>([^"]*">)/;
+  //pOut = pOut.replace(urlPatch, "$1$2$3");
+  //urlPatch=/(<a [^\[]*)\[\/AuthorComment\]([^>]*">)/;
+  //pOut=pOut.replace(urlPatch, "$1$2");
+  Logger.log(pOut);
   return escapeAmp(pOut);
 }
