@@ -246,8 +246,9 @@ function saveOUXML(){
     name=attachments[i]['fileName']
     content=attachments[i]['content']
     mimeType=attachments[i]['mimeType']
-    //f=DriveApp.createFile(name, content, mimeType)
-    fid.createFile(name, content, mimeType)
+    //Inefficient and going round the houses - we converted out of blob originally...
+    var blob= Utilities.newBlob(content, mimeType, name)
+    fid.createFile(blob)
   }
 }
 
