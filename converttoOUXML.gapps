@@ -39,12 +39,19 @@ Usage:
     -- A new folder with same name as original doc will be created containing the files
 */
 
-HEADER='<Item id="" TextType="CompleteItem" SchemaVersion="2.0" PageStartNumber="1" Template="Generic_A4_Unnumbered" Module="default" DiscussionAlias="Discussion" SessionAlias="" SecondColour="None" ThirdColour="None" FourthColour="None" Logo="colour" Rendering="">\n'
-FOOTER='\n</Item>'
+//User vars - pick these up eg from parent folder name?
+var COURSECODE='TM351-WS';
+var ITEMID='X_exportPreview';
+//-----
 
 function ConvertToOUXML() {
+  var HEADER='<Item id="'+ITEMID+'" TextType="CompleteItem" SchemaVersion="2.0" PageStartNumber="1" Template="Generic_A4_Unnumbered" Module="default" DiscussionAlias="Discussion" SessionAlias="" SecondColour="None" ThirdColour="None" FourthColour="None" Logo="colour" Rendering="">\n';
+  var FOOTER='\n</Item>';
+
   var numChildren = DocumentApp.getActiveDocument().getActiveSection().getNumChildren();
-  var text = HEADER + '<CourseCode/>\n<CourseTitle/>\n<ItemID/>\n<ItemTitle/>\n\n';
+  var courseCode=;
+  var courseTitle=COURSECODE;
+  var text = HEADER + '<CourseCode>'+courseCode+'</CourseCode>\n<CourseTitle>'+CourseTitle+'</CourseTitle>\n<ItemID/>\n<ItemTitle/>\n\n';
   text+="<Unit>\n<UnitID/>\n<UnitTitle>"+DocumentApp.getActiveDocument().getName()+"</UnitTitle>\n<ByLine/>\n"
   var inSrc = false;
   var inClass = false;
@@ -106,6 +113,11 @@ function ConvertToOUXML() {
       }
     }
     if (child.getType()===DocumentApp.ElementType.LIST_ITEM) {
+      //Refactor note: as we hit a list element for the first time,
+      // perhaps we should go into a while loop, incrementing i 
+      //until such a time as we aren't still in a LIST_ITEM?
+      //This would allow us to more easily handle the outer list tags?
+    
       inlist=true;
       var listItem = child;
       var nesting = listItem.getNestingLevel()
