@@ -232,12 +232,9 @@ function processParagraph(index, element, inSrc, imageCounter, listCounters, set
   var pOut = "";
   var textElements = [];
   var imagePrefix = "image_";
-  
-//  Logger.log("New Paragraph");
-  
+    
   // First, check for things that require no processing.
   if (element.getNumChildren()==0) {
-//    Logger.log("element.getNumChildren()==0, inCodeBlock " + inCodeBlock);
     if (inCodeBlock) {
       result.text = "";
       result.cbl = true;
@@ -357,8 +354,6 @@ function processParagraph(index, element, inSrc, imageCounter, listCounters, set
   }
 
   if (textElements.length==0) {
-    Logger.log("textElements.length==0, inCodeBlock " + inCodeBlock);
-
     // Isn't result empty now?
     return result;
   }
@@ -381,9 +376,8 @@ function processParagraph(index, element, inSrc, imageCounter, listCounters, set
                   'src="http://www.html5rocks.com/static/jsperfview/embed.html?id='+RegExp.$1+
                   '"></iframe>';
   
-  //Paragraphs contianing any text elements that look like a code block are code block lines
+  //Paragraphs containing any text elements that look like a code block are code block lines
   } else if (anyCBL(settings, textElements)) {
-    Logger.log("CBL Paragraph: " + pOut);
     if (pOut.length > 1 && pOut.charAt(0) === "\t") {
       pOut = pOut.slice(1);
     }
@@ -515,10 +509,6 @@ function makeSections(pOut, off, lastOff) {
 }
 
 function processTextElement(inSrc, txt, settings, inCodeBlock) {
-
-//  if (typeof txt.getText == 'function') { 
-//    Logger.log("txt.getText: '" + txt.getText() + "'");
-//  }
 
   if (typeof(txt) === 'string') {
     return txt;
