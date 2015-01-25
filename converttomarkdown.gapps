@@ -44,7 +44,7 @@ Usage:
 */
 
 function convertDefaultFolder() {
-  var settings = {markdownTables: true, plainTextOutput: false, boldItalicIsQuote: true, codeBlocks: true};
+  var settings = {markdownTables: true, plainTextOutput: false, boldItalicIsQuote: true, codeBlocks: true, codeBlockMinIndent: 12};
   convertDefaultFolderWithSettings(settings);
 }
 
@@ -224,6 +224,10 @@ function escapeHTML(text) {
   return text.replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }
 
+function isNumber(n) {
+  return !isNaN(parseFloat(n)) && isFinite(n);
+}
+
 // Process each child element (not just paragraphs).
 function processParagraph(index, element, inSrc, imageCounter, listCounters, settings, inCodeBlock) {
 
@@ -232,6 +236,7 @@ function processParagraph(index, element, inSrc, imageCounter, listCounters, set
   var pOut = "";
   var textElements = [];
   var imagePrefix = "image_";
+  var indented = false;
     
   // First, check for things that require no processing.
   if (element.getNumChildren()==0) {
@@ -249,6 +254,14 @@ function processParagraph(index, element, inSrc, imageCounter, listCounters, set
     return {"text": "[[TOC]]"};
   }
   
+  //Check for indent that can indicate code block etc.
+  if (element.getType() === DocumentApp.ElementType.PARAGRAPH) {
+    if (isNumber(settings.codeBlockMinIndent)) {
+      if (element.getIndentStart() > settings.codeBlockMinIndent) {
+        indented = true;
+      }
+    }
+  }
   
   // Handle Table elements. Pretty simple-minded now, but works for simple tables.
   // Note that Markdown does not process within block-level HTML, so it probably 
@@ -377,7 +390,7 @@ function processParagraph(index, element, inSrc, imageCounter, listCounters, set
                   '"></iframe>';
   
   //Paragraphs containing any text elements that look like a code block are code block lines
-  } else if (anyCBL(settings, textElements)) {
+  } else if (anyCBL(settings, textElements, indented)) {
     if (pOut.length > 1 && pOut.charAt(0) === "\t") {
       pOut = pOut.slice(1);
     }
@@ -411,23 +424,28 @@ function processParagraph(index, element, inSrc, imageCounter, listCounters, set
   return result;
 }
 
-function anyCBL(settings, txts) {
+function isTextCourier(txt, c) {
+  return (txt.getFontFamily(c) == DocumentApp.FontFamily.COURIER_NEW);
+}
+
+function anyCBL(settings, txts, indented) {
   for (var i=0; i<txts.length; i++) {
     var txt = txts[i];
-    if (isCBL(settings, txt)) return true;
+    if (isCBL(settings, txt, indented)) return true;
   }
   return false;
 }
 
-function isCBL(settings, txt) {
+function isCBL(settings, txt, indented) {
   if (typeof(txt) === 'string') {
     return false;
   }
+  
+  var cbl = false;
 
-  if (settings.codeBlocks && txt.getText().length > 1 && txt.getText().charAt(0) === "\t") {
-    var cbl = false;
+  if (settings.codeBlocks && ((txt.getText().length > 1 && txt.getText().charAt(0) === "\t") || indented)) {
     for (var c = 0; c < txt.getText().length; c++) {
-      if (txt.getFontFamily(c)===DocumentApp.FontFamily.COURIER_NEW) {
+      if (isTextCourier(txt, c)) {
         cbl = true;
       }
     }    
@@ -530,7 +548,6 @@ function processTextElement(inSrc, txt, settings, inCodeBlock) {
     //Start of formatting run
     var off=attrs[i];
     var url=txt.getLinkUrl(off);
-    var font=txt.getFontFamily(off);
 
     var sections = makeSections(pOut, off, lastOff);
 
@@ -547,9 +564,9 @@ function processTextElement(inSrc, txt, settings, inCodeBlock) {
       pOut = sections.pre + '[' + sections.inside + '](' + url + ')' + sections.post;
       
     //Process font
-    } else if (font && !inSrc && font===font.COURIER_NEW) {
+    } else if (!inSrc && isTextCourier(txt, off)) {
       // detect fonts that are in multiple pieces because of errors on formatting:
-      while (i>=1 && txt.getFontFamily(attrs[i-1]) && txt.getFontFamily(attrs[i-1])===font.COURIER_NEW) {
+      while (i>=1 && isTextCourier(txt, attrs[i-1])) {
         i-=1;
         off=attrs[i];
       }
