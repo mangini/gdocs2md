@@ -391,7 +391,9 @@ function processParagraph(index, element, inSrc, imageCounter, listCounters, set
   
   //Paragraphs containing any text elements that look like a code block are code block lines
   } else if (anyCBL(settings, textElements, indented)) {
-    if (pOut.length > 1 && pOut.charAt(0) === "\t") {
+    //If paragraph is not indented, and is a CBL, then remove the leading tab if there
+    //is one, since it is there just to indicate a code block.
+    if (pOut.length > 1 && pOut.charAt(0) === "\t" && !indented) {
       pOut = pOut.slice(1);
     }
     result.text = pOut;
@@ -496,7 +498,7 @@ function findPrefix(inSrc, element, listCounters) {
 }
 
 //Transfer any leading spaces from inside to end of pre, and trailing spaces from inside to start of post,
-//so that bold/italics symbols are adjacent to the words they apply to, without intervening white space.
+//so that formatting symbols are adjacent to the words they apply to, without intervening white space.
 function compressInside(sections, blank) {
   while (sections.inside.substring(0, 1) == blank) {
     sections.pre = sections.pre + blank; 
@@ -563,7 +565,7 @@ function processTextElement(inSrc, txt, settings, inCodeBlock) {
       
       pOut = sections.pre + '[' + sections.inside + '](' + url + ')' + sections.post;
       
-    //Process font
+    //Process font for inline code
     } else if (!inSrc && isTextCourier(txt, off)) {
       // detect fonts that are in multiple pieces because of errors on formatting:
       while (i>=1 && isTextCourier(txt, attrs[i-1])) {
@@ -572,8 +574,18 @@ function processTextElement(inSrc, txt, settings, inCodeBlock) {
       }
       sections = makeSections(pOut, off, lastOff);
       
-      pOut = sections.pre + '`' + sections.inside + '`' + sections.post;
+      //Shrink bold/italic regions to reduce the whitespace they apply to.
+      compressInsideWhitespace(sections);
 
+      //If we have shrunk the formatted region to nothing, ignore it
+      if (sections.inside.length == 0) {
+        pOut = sections.pre + sections.post;
+        
+      //Apply formatting
+      } else {      
+        pOut = sections.pre + '`' + sections.inside + '`' + sections.post;      
+      }
+      
     //Process bold and/or italic. Note that this is only processed if this section is NOT
     //an URL or code.
     } else if (txt.isBold(off) || txt.isItalic(off)) {
