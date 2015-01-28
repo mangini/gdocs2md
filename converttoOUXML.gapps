@@ -1,0 +1,578 @@
+/**
+ * Creates a menu entry in the Google Docs UI when the document is opened.
+ *
+ * @param {object} e The event parameter for a simple onOpen trigger. To
+ *     determine which authorization mode (ScriptApp.AuthMode) the trigger is
+ *     running in, inspect e.authMode.
+ */
+function onOpen(e) {
+  DocumentApp.getUi().createAddonMenu()
+      .addItem('Metadata','metadataView')
+      .addItem('Email OUXML', 'emailOUXML')
+      .addItem('Save OUXML to GDrive', 'saveOUXML')
+      .addItem('Save OUXML to GDrive (zip)', 'saveOUXMLzip')
+      .addToUi();
+}
+
+/**
+ * Runs when the add-on is installed.
+ *
+ * @param {object} e The event parameter for a simple onInstall trigger. To
+ *     determine which authorization mode (ScriptApp.AuthMode) the trigger is
+ *     running in, inspect e.authMode. (In practice, onInstall triggers always
+ *     run in AuthMode.FULL, but onOpen triggers may be AuthMode.LIMITED or
+ *     AuthMode.NONE.)
+ */
+function onInstall(e) {
+  onOpen(e);
+}
+
+/*
+Usage: 
+  Adding this script to your doc: 
+    - Tools > Script Editor > New
+    - Select "Blank Project", then paste this code in and save eg as "md exporter"
+    - Reload the original doc
+  Running the script  (first run of each function will require you to authorize it):
+    - In the Add-Ons menu, find the new menu eg "md exporter"
+    - Select "Email md" to email markdown doc and saved images to yourself
+    -- Converted doc will be mailed to you. Subject will be "[MARKDOWN_MAKER]..."
+    - Select "Save md" to save markdown doc and images to your Google Drive
+    -- A new folder with same name as original doc will be created containing the files
+*/
+
+
+function metadataView() {
+  html= HtmlService
+      .createTemplateFromFile('metadata')
+      .evaluate()
+      .setSandboxMode(HtmlService.SandboxMode.IFRAME);
+  DocumentApp.getUi().showModalDialog(html, 'Metadata');
+}
+
+
+function processMetadataForm(theForm) {
+  var props=PropertiesService.getDocumentProperties()
+  //
+  for (var item in theForm) {
+    props.setProperty(item,theForm[item])
+    Logger.log(item+"::"+theForm[item]);
+  }
+}
+
+function getProp(key) {
+  var props= PropertiesService.getDocumentProperties()
+  return props.getProperty(key) ? props.getProperty(key) : '';
+}
+
+//------
+//User vars - pick these up eg from parent folder name?
+
+var COURSECODE= getProp('courseCode');
+var ITEMID='X_exportPreview';
+var RENDERING=getProp('rendering')
+//-----
+
+function ConvertToOUXML() {
+  var HEADER='<Item id="'+ITEMID+'" TextType="CompleteItem" SchemaVersion="2.0" PageStartNumber="1" Template="Generic_A4_Unnumbered" Module="default" DiscussionAlias="Discussion" SessionAlias="" SecondColour="None" ThirdColour="None" FourthColour="None" Logo="colour" Rendering="'+RENDERING+'">\n';
+  var FOOTER='\n</Item>';
+
+  var numChildren = DocumentApp.getActiveDocument().getActiveSection().getNumChildren();
+  var courseCode=COURSECODE;
+  var courseTitle=COURSECODE;
+  var text = HEADER + '<CourseCode>'+courseCode+'</CourseCode>\n<CourseTitle>'+courseTitle+'</CourseTitle>\n<ItemID/>\n<ItemTitle/>\n\n';
+  text+="<Unit>\n<UnitID/>\n<UnitTitle>"+DocumentApp.getActiveDocument().getName()+"</UnitTitle>\n<ByLine/>\n"
+  var inSrc = false;
+  var inClass = false;
+  var globalImageCounter = 0;
+  var globalListCounters = {};
+  // edbacher: added a variable for indent in src <pre> block. Let style sheet do margin.
+  var srcIndent = "";
+  
+  var attachments = [];
+  
+  // Walk through all the child elements of the doc.
+  var inlist= false;
+  var inSublist = false;
+  var inSession=false;
+  var inSection=false;
+  var inSubSection=false;
+  for (var i = 0; i < numChildren; i++) {
+    var child = DocumentApp.getActiveDocument().getActiveSection().getChild(i);
+    var result = processParagraph(i, child, inSrc, globalImageCounter, globalListCounters);
+    
+    if (child.getType()===DocumentApp.ElementType.PARAGRAPH) {
+      var heading=child.getHeading();
+      //Crappy default hierarchy to try to organise Session/Section/SubSection
+      //Partial attempt at making elements robust
+      if (heading===DocumentApp.ParagraphHeading.HEADING3) {
+        if (inSubSection) text=text+"</SubSection>\n";
+        if (!(inSession)) {
+          text=text+"<Session>\n<Title></Title>\n";
+          inSession=true;
+        }
+        if (!(inSection)) {
+          text=text+"<Section>\n<Title></Title>\n";
+          inSection=true;
+        }
+        text=text+"<SubSection>\n";
+        inSubSection=true;
+      } else if (heading===DocumentApp.ParagraphHeading.HEADING2) {
+        if (inSubSection) {
+          text=text+"</SubSection>\n</Section>\n";
+          inSubSection=false;
+        } else if (inSection) text=text+"</Section>\n";
+        if (!(inSession)) {
+          text=text+"<Session>\n<Title></Title>\n";
+          inSession=true;
+        }
+        text=text+"<Section>\n";
+        inSection=true;
+      } else if (heading===DocumentApp.ParagraphHeading.HEADING1) {
+        if (inSubSection) {
+          text=text+"</SubSection>\n</Section>\n</Session>\n";
+          inSubSection=false;
+          inSection=false;
+        } else if (inSection) {
+          text=text+"</Section>\n</Session>\n";
+          inSection=false;
+        } else if (inSession) text=text+"</Session>\n";
+        text=text+"<Session>\n";
+        inSession=true;
+      }
+    }
+    if (child.getType()===DocumentApp.ElementType.LIST_ITEM) {
+      //Refactor note: as we hit a list element for the first time,
+      // perhaps we should go into a while loop, incrementing i 
+      //until such a time as we aren't still in a LIST_ITEM?
+      //This would allow us to more easily handle the outer list tags?
+    
+      inlist=true;
+      var listItem = child;
+      var nesting = listItem.getNestingLevel()
+      
+      var key = listItem.getListId()+ '.' + listItem.getNestingLevel();
+      var counter = globalListCounters[key] || 0;
+      counter++;
+      globalListCounters[key] = counter;
+      //counter===1 says we're seeing a list for the first time
+      if (counter===1) {
+        if (nesting===0) {
+          if (inSublist){
+            text=text + '\n</BulletedSubsidiaryList>\n</ListItem>\n';
+            inSublist=false;
+          }
+          text=text+"<BulletedList>\n";
+        } else if (nesting===1) {
+          if (inlist) {
+            text=text.replace(/<\/ListItem>\s*$/, '\n');
+          } else {
+            text=text+"<BulletedList>\n<ListItem>\n";
+            inList=true; 
+          }
+          text=text+"<BulletedSubsidiaryList>";
+          inSublist= true;
+        } else throw "Paragraph "+index+" of type "+element.getType()+" has an unsupported nesting level of " +nesting;
+      } else {
+        //We're in a list we know about...
+        if (nesting===0) {
+          if (inSublist){
+            text=text + '\n</BulletedSubsidiaryList>\n</ListItem>\n';
+            inSublist=false;
+          }
+        } else if (nesting===1){
+          if (!(inSublist)){
+            text=text.replace(/<\/ListItem>\s*$/, '\n');
+            text=text+"<BulletedSubsidiaryList>";
+            inSublist=true;
+          }
+        }
+      }
+    } else if ( (inlist) || (inSublist) ) {
+      //We've hit a non-list item but we're in a list... So make good...
+      if (inSublist) text=text + '\n</BulletedSubsidiaryList>\n</ListItem>\n';
+      text=text + '\n</BulletedList>\n\n';
+      inlist=false;
+      inSublist=false;
+    }
+    
+    
+    globalImageCounter += (result && result.images) ? result.images.length : 0;
+    if (result!==null) {
+      if (result.sourcePretty==="start" && !inSrc) {
+        inSrc=true;
+        text+="<pre class=\"prettyprint\">\n";
+      } else if (result.sourcePretty==="end" && inSrc) {
+        inSrc=false;
+        text+="</pre>\n\n";
+      } else if (result.source==="start" && !inSrc) {
+        inSrc=true;
+        text+="<pre>\n";
+      } else if (result.source==="end" && inSrc) {
+        inSrc=false;
+        text+="</pre>\n\n";
+      } else if (result.inClass==="start" && !inClass) {
+        inClass=true;
+        text+="<div class=\""+result.className+"\">\n";
+      } else if (result.inClass==="end" && inClass) {
+        inClass=false;
+        text+="</div>\n\n";
+      } else if (inClass) {
+        text+=result.text+"\n\n";
+      } else if (inSrc) {
+        text+=(srcIndent+escapeHTML(result.text)+"\n");
+      } else if (result.text && result.text.length>0) {
+        text+=result.text+"\n\n";
+      }
+      
+      if (result.images && result.images.length>0) {
+        for (var j=0; j<result.images.length; j++) {
+          attachments.push( {
+            "fileName": result.images[j].name,
+            "mimeType": result.images[j].type,
+            "content": result.images[j].bytes } );
+        }
+      }
+    } else if (inSrc) { // support empty lines inside source code
+      text+='\n';
+    }
+      
+  }
+  
+  if (inSublist) text+="\n</BulletedSubsidiaryList>\n</ListItem>\n"
+  if (inlist) text+="\n</BulletedList>\n"
+  if (inSubSection) text+="</SubSection>";
+  if (inSection) text+="</Section>";
+  if (inSession) text+="</Session>";
+  text+="</Unit>\n"+FOOTER
+  
+  //Hack fixes - bleurghh
+  text=text.replace(/<Session>\s*<\/Session>/g,'').replace(/<Section>\s*<\/Section>/g,'').replace(/<SubSection>\s*<\/SubSection>/g,'');
+  //?? More general to replace following with routine to add <Title></Title> if <Session> or <Section> tag 
+  // is followed by a tag that isn't <Title> ??
+  text=text.replace(/<Session>\s*<Section>/g,'<Session><Title></Title><Section>');
+  text=text.replace(/<Section>\s*<SubSection>/g,'<Section><Title></Title><SubSection>');
+  text=text.replace(/<Section>\s*<Paragraph>/g,'<Section><Title></Title><Paragraph>');
+  text=text.replace(/<Paragraph>\s*<\/Paragraph>/,'').replace('</i><i>','').replace('</b><b>','');
+  //replace ampersand
+  //text = text.replace(/&amp;/g,"&").replace(/&/g,'&amp;');
+  
+  
+  attachments.push({"fileName":DocumentApp.getActiveDocument().getName()+".xml", "mimeType": "text/xml", "content": text});
+  
+  return attachments
+}
+ 
+function emailOUXML(){
+  var attachments=ConvertToOUXML()
+  MailApp.sendEmail(Session.getActiveUser().getEmail(), 
+                    "[OUXML_MAKER] "+DocumentApp.getActiveDocument().getName(), 
+                    "Your converted markdown document is attached (converted from "+DocumentApp.getActiveDocument().getUrl()+")"+
+                    "\n\nDon't know how to use the format options? See http://github.com/mangini/gdocs2md\n",
+                    { "attachments": attachments });
+}
+
+function saveOUXML(){
+  var attachments=ConvertToOUXML()
+  var folder=DocumentApp.getActiveDocument().getName()
+  var fid=DriveApp.createFolder(folder)
+  for (var i=0; i<attachments.length; i++){
+    var name=attachments[i]['fileName']
+    var content=attachments[i]['content']
+    var mimeType=attachments[i]['mimeType']
+    //Inefficient and going round the houses - we converted out of blob originally...
+    var blob= Utilities.newBlob(content, mimeType, name)
+    fid.createFile(blob)
+  }
+}
+
+function saveOUXMLzip(){
+  //via http://stackoverflow.com/a/13262602/454773
+  var attachments=ConvertToOUXML()
+  var folder=DocumentApp.getActiveDocument().getName()
+  var contents=[]
+  for (var i=0; i<attachments.length; i++){
+    var name=attachments[i]['fileName']
+    var content=attachments[i]['content']
+    var mimeType=attachments[i]['mimeType']
+    //Inefficient and going round the houses - we converted out of blob originally...
+    var blob= Utilities.newBlob(content, mimeType, name)
+    contents.push(blob)
+  }
+  DriveApp.createFile(Utilities.zip(contents, folder+'.zip'));
+}
+
+function escapeAmp(text) {
+  return text.replace(/&(?!amp;)/g, '&amp;');
+}
+
+function escapeHTML(text) {
+  text=escapeAmp(text);
+  return text.replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
+// Process each child element (not just paragraphs).
+function processParagraph(index, element, inSrc, imageCounter, listCounters) {
+  // First, check for things that require no processing.
+  if (element.getNumChildren()==0) {
+    return null;
+  }  
+  // Punt on TOC.
+  if (element.getType() === DocumentApp.ElementType.TABLE_OF_CONTENTS) {
+    return {"text": "[[TOC]]"};
+  }
+  
+  // Set up for real results.
+  var result = {};
+  var pOut = "";
+  var textElements = [];
+  var imagePrefix = "image_";
+  
+  // Handle Table elements. Pretty simple-minded now, but works for simple tables.
+  // Note that Markdown does not process within block-level HTML, so it probably 
+  // doesn't make sense to add markup within tables.
+  if (element.getType() === DocumentApp.ElementType.TABLE) {
+    textElements.push("<Table>\n<TableHead/>\n<tbody>\n");
+    var nCols = element.getChild(0).getNumCells();
+    for (var i = 0; i < element.getNumChildren(); i++) {
+      textElements.push("  <tr>\n");
+      // process this row
+      for (var j = 0; j < nCols; j++) {
+        textElements.push("    <td>" + element.getChild(i).getChild(j).getText() + "</td>\n");
+      }
+      textElements.push("  </tr>\n");
+    }
+    textElements.push("</tbody>\n</Table>\n");
+  }
+  
+  //Image must be in a para on its own.
+  //This is a really horrible fudge
+  var ic=0
+  for (var i = 0; i < element.getNumChildren(); i++) {
+    var t=element.getChild(i).getType();
+    if (t=== DocumentApp.ElementType.INLINE_IMAGE) {
+      ic++;
+      result.images = result.images || [];
+      var contentType = element.getChild(i).getBlob().getContentType();
+      var extension = "";
+      if (/\/png$/.test(contentType)) {
+        extension = ".png";
+      } else if (/\/gif$/.test(contentType)) {
+        extension = ".gif";
+      } else if (/\/jpe?g$/.test(contentType)) {
+        extension = ".jpg";
+      } else {
+        throw "Unsupported image type: "+contentType;
+      }
+      var name = imagePrefix + imageCounter + extension;
+      imageCounter++;
+      textElements.push('<Figure><Image src="'+name+'"/><Description/></Figure>');
+      result.images.push( {
+        "bytes": element.getChild(i).getBlob().getBytes(), 
+        "type": contentType, 
+        "name": name});
+      var pOut = "";
+      for (var j=0; j<textElements.length; j++) {
+        pOut += processTextElement(inSrc, textElements[j]);
+      }
+      result.text=pOut 
+    } 
+  }
+  if (ic===1) return result;
+  else if (ic>1) throw "Paragraph "+index+" of type "+element.getType()+" has multiple elements alongside an image";
+
+  
+  // Process various types (ElementType).
+  for (var i = 0; i < element.getNumChildren(); i++) {
+    var t=element.getChild(i).getType();
+    
+    if (t === DocumentApp.ElementType.INLINE_DRAWING) {
+      // do nothing substantive: no export as image available for now?
+      textElements.push('\nINLINE_DRAWING - UNSUPPORTED EXPORT\n');
+    } else if (t === DocumentApp.ElementType.TABLE_ROW) {
+      // do nothing: already handled TABLE_ROW
+    } else if (t === DocumentApp.ElementType.TEXT) {
+      var txt=element.getChild(i);
+      pOut += escapeHTML(txt.getText());
+      textElements.push(txt);
+    } else if (t === DocumentApp.ElementType.PAGE_BREAK) {
+      // ignore
+    } else if (t === DocumentApp.ElementType.HORIZONTAL_RULE) {
+      textElements.push('* * *\n');
+    } else if (t === DocumentApp.ElementType.FOOTNOTE) {
+      textElements.push(' (NOTE: '+element.getChild(i).getFootnoteContents().getText()+')');
+    } else {
+      throw "Paragraph "+index+" of type "+element.getType()+" has an unsupported child: "
+      +t+" "+(element.getChild(i)["getText"] ? element.getChild(i).getText():'')+" index="+index;
+    }
+  }
+
+  if (textElements.length==0) {
+    // Isn't result empty now?
+    return result;
+  }
+  
+  // evb: Add source pretty too. (And abbreviations: src and srcp.)
+  // process source code block:
+  if (/^\s*---\s+srcp\s*$/.test(pOut) || /^\s*---\s+source pretty\s*$/.test(pOut)) {
+    result.sourcePretty = "start";
+  } else if (/^\s*---\s+src\s*$/.test(pOut) || /^\s*---\s+source code\s*$/.test(pOut)) {
+    result.source = "start";
+  } else if (/^\s*---\s+class\s+([^ ]+)\s*$/.test(pOut)) {
+    result.inClass = "start";
+    result.className = RegExp.$1;
+  } else if (/^\s*---\s*$/.test(pOut)) {
+    result.source = "end";
+    result.sourcePretty = "end";
+    result.inClass = "end";
+  } else if (/^\s*---\s+jsperf\s*([^ ]+)\s*$/.test(pOut)) {
+    result.text = '<iframe style="width: 100%; height: 340px; overflow: hidden; border: 0;" '+
+                  'src="http://www.html5rocks.com/static/jsperfview/embed.html?id='+RegExp.$1+
+                  '"></iframe>';
+  } else {
+
+    prefix = findPrefix(inSrc, element, listCounters);
+  
+    var pOut = "";
+    for (var i=0; i<textElements.length; i++) {
+      pOut += processTextElement(inSrc, textElements[i]);
+    }
+
+    // replace Unicode quotation marks
+    pOut = pOut.replace('\u201d', '"').replace('\u201c', '"');
+ 
+    //result.text = prefix+pOut+prefix.replace('<','</');
+    while (prefix.length){
+      var tag=prefix.pop()
+      if ((pOut) && pOut!=" ") pOut= tag  +pOut + tag.replace('<','</');
+    }
+    result.text=pOut
+  }
+  
+  return result;
+}
+
+// Add correct prefix to list items.
+function findPrefix(inSrc, element, listCounters) {
+  var prefix=[];
+  if (!inSrc) {
+    if (element.getType()===DocumentApp.ElementType.PARAGRAPH) {   
+      var paragraphObj = element;
+      switch (paragraphObj.getHeading()) {
+        // REMOVE - Add a # for each heading level. No break, so we accumulate the right number.
+        case DocumentApp.ParagraphHeading.HEADING6: prefix.push("<Paragraph>");prefix.push("<b>");break;
+        case DocumentApp.ParagraphHeading.HEADING5: prefix.push("<Paragraph>");prefix.push("<b>");break;
+        case DocumentApp.ParagraphHeading.HEADING4: prefix.push("<Paragraph>");prefix.push("<b>");break;
+        case DocumentApp.ParagraphHeading.HEADING3: prefix.push("<Title>");break;
+        case DocumentApp.ParagraphHeading.HEADING2: prefix.push("<Title>");break;
+        case DocumentApp.ParagraphHeading.HEADING1: prefix.push("<Title>");break;
+        default: prefix.push("<Paragraph>");
+      }
+    } else if (element.getType()===DocumentApp.ElementType.LIST_ITEM) {
+      var listItem = element;
+      var nesting = listItem.getNestingLevel()
+
+      if (nesting===0) prefix.push("<ListItem>")
+      else if (nesting===1) prefix.push("<SubListItem>")
+      /*
+      for (var i=0; i<nesting; i++) {
+        prefix += "    ";
+      }
+      var gt = listItem.getGlyphType();
+      // Bullet list (<ul>):
+      if (gt === DocumentApp.GlyphType.BULLET
+          || gt === DocumentApp.GlyphType.HOLLOW_BULLET
+          || gt === DocumentApp.GlyphType.SQUARE_BULLET) {
+        prefix += "* ";
+      } else {
+        // Ordered list (<ol>):
+        var key = listItem.getListId() + '.' + listItem.getNestingLevel();
+        var counter = listCounters[key] || 0;
+        counter++;
+        listCounters[key] = counter;
+        prefix += counter+". ";
+      }
+      //*/
+    }
+  }
+  return prefix;
+}
+
+function processTextElement(inSrc, txt) {
+  if (typeof(txt) === 'string') {
+    return escapeAmp(txt);
+  }
+  
+  var pOut = txt.getText();
+  if (! txt.getTextAttributeIndices) {
+    return escapeHTML(pOut);
+  }
+  
+  //HACK
+  pOut=pOut.replace(/</g,'♣').replace(/>/g,'♦')
+  Logger.log(pOut)
+  var attrs=txt.getTextAttributeIndices();
+  var lastOff=pOut.length;
+
+  for (var i=attrs.length-1; i>=0; i--) {
+    var off=attrs[i];
+    var url=txt.getLinkUrl(off);
+    var font=txt.getFontFamily(off);
+    Logger.log('i %s, off %s, url %s,font %s',i,off,url,font)
+    if (url) {  // start of link
+      if (i>=1 && attrs[i-1]==off-1 && txt.getLinkUrl(attrs[i-1])===url) {
+        // detect links that are in multiple pieces because of errors on formatting:
+        i-=1;
+        off=attrs[i];
+        url=txt.getLinkUrl(off);
+      }
+      //pOut=pOut.substring(0, off)+'['+pOut.substring(off, lastOff)+']('+url+')'+pOut.substring(lastOff);
+      pOut=pOut.substring(0, off)+'<a href="'+url+'">'+pOut.substring(off, lastOff)+'</a>'+pOut.substring(lastOff);
+      Logger.log('wurl1 %s',pOut)
+      lastOff+='<a href=""></a>'.length+url.length;
+    } else if (font) {
+      if (!inSrc && font===font.COURIER_NEW) {
+        while (i>=1 && txt.getFontFamily(attrs[i-1]) && txt.getFontFamily(attrs[i-1])===font.COURIER_NEW) {
+          // detect fonts that are in multiple pieces because of errors on formatting:
+          i-=1;
+          off=attrs[i];
+        }
+        pOut=pOut.substring(0, off)+'<ComputerCode>'+escapeHTML(pOut.substring(off, lastOff))+'</ComputerCode>'+pOut.substring(lastOff);
+        
+      }
+      
+    }
+    
+    if (txt.isBold(off)) {
+      var d1 = "<b>";
+      var d2 = "</b>";
+      if (txt.isItalic(off)) {
+        // edbacher: changed this to handle bold italic properly.
+        d1 = "<b><i>"; d2 = "</i></b>";
+      }
+      pOut=pOut.substring(0, off)+d1+pOut.substring(off, lastOff)+d2+pOut.substring(lastOff);
+      lastOff+="<b><i></i></b>".length;
+    } else if (txt.isItalic(off)) {
+      pOut=pOut.substring(0, off)+'<i>'+pOut.substring(off, lastOff)+'</i>'+pOut.substring(lastOff);
+      lastOff+="<i></i>".length;
+    }
+    Logger.log('wurl3 %s',pOut)
+    //This still treats headers as AuthorComment - trap on a better colour? Only certain colours?
+    if (txt.getForegroundColor(off) && (!txt.getLinkUrl(off)) ) {
+      pOut=pOut.substring(0, off)+'<AuthorComment>'+pOut.substring(off, lastOff)+'</AuthorComment>'+pOut.substring(lastOff);
+    }
+    Logger.log('wurl3 %s',pOut)
+    lastOff=off;
+  }
+        
+      
+  //HORRIBLE HACK
+  //The above is broken, occasionally injecting tags into anchor tag, because the string lengths keep changing
+  //Workaround for now...
+  //var urlPatch = /<[ib]>(\[AuthorComment\])?(<a [^<]*)<\/[ib]>([^>]*">)/; //<[ib]>?(<a [^<]*)<\/[ib]>([^>]*">); // /<[ib]>(<a [^<]*)<\/[ib]>([^"]*">)/;
+  //pOut = pOut.replace(urlPatch, "$1$2$3");
+  //urlPatch=/(<a [^\[]*)\[\/AuthorComment\]([^>]*">)/;
+  //pOut=pOut.replace(urlPatch, "$1$2");
+  Logger.log(pOut);
+  return escapeAmp(pOut).replace(/♣/g,'&lt;').replace(/♦/g,'&gt;');
+}

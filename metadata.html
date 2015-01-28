@@ -1,0 +1,50 @@
+<script src="//ajax.googleapis.com/ajax/libs/jquery/1.9.1/jquery.min.js"></script>
+
+
+
+<? 
+//Add metadata fields here in the following format:
+//[Label, a unique identifier (unique word, no spaces or punctuation), an optional default value]
+var metadataItems =[
+    ["Lead Author","leadAuthor"],
+    ["Course Code","courseCode"],
+    ["Course Title","courseTitle"],
+    ["Unit Title","unitTitle"],
+    ["Rendering","rendering","VLE2 staff (learn3)"]
+]
+?>
+
+<? var metadata = PropertiesService.getDocumentProperties() ?>
+<script>
+function onSave() {google.script.host.close()}
+</script>
+
+      
+<form id='metadataForm'>
+
+<? for (var i = 0; i < metadataItems.length; i++) { ?>
+  <div><?= metadataItems[i][0] ?>: 
+    <input type="text" 
+      name = "<?= metadataItems[i][1] ?>"
+      <? val=''
+        if (metadataItems[i].length>2) val= metadataItems[i][2]  ?>
+      value= "<?= metadata.getProperty(metadataItems[i][1]) ? metadata.getProperty(metadataItems[i][1])  : val  ?>"
+    /> 
+  </div>
+<? } ?>
+  
+</form>
+
+<div>
+  <input
+    type="button" 
+    value="Save & Close" 
+    onclick="google.script.run.withSuccessHandler(onSave).processMetadataForm(document.getElementById('metadataForm'))"
+  />
+
+  <input 
+    type="button" 
+    value="Cancel" 
+    onclick="google.script.host.close()"
+  />
+</div>

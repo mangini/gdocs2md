@@ -1,13 +1,42 @@
+/**
+ * Creates a menu entry in the Google Docs UI when the document is opened.
+ *
+ * @param {object} e The event parameter for a simple onOpen trigger. To
+ *     determine which authorization mode (ScriptApp.AuthMode) the trigger is
+ *     running in, inspect e.authMode.
+ */
+function onOpen(e) {
+  DocumentApp.getUi().createAddonMenu()
+      .addItem('Email md', 'emailMarkDown')
+      .addItem('Save md', 'saveMarkDown')
+      .addToUi();
+}
+
+/**
+ * Runs when the add-on is installed.
+ *
+ * @param {object} e The event parameter for a simple onInstall trigger. To
+ *     determine which authorization mode (ScriptApp.AuthMode) the trigger is
+ *     running in, inspect e.authMode. (In practice, onInstall triggers always
+ *     run in AuthMode.FULL, but onOpen triggers may be AuthMode.LIMITED or
+ *     AuthMode.NONE.)
+ */
+function onInstall(e) {
+  onOpen(e);
+}
+
 /*
 Usage: 
   Adding this script to your doc: 
-    - Tools > Script Manager > New
-    - Select "Blank Project", then paste this code in and save.
-  Running the script:
-    - Tools > Script Manager
-    - Select "ConvertToMarkdown" function.
-    - Click Run button.
-    - Converted doc will be mailed to you. Subject will be "[MARKDOWN_MAKER]...".
+    - Tools > Script Editor > New
+    - Select "Blank Project", then paste this code in and save eg as "md exporter"
+    - Reload the original doc
+  Running the script  (first run of each function will require you to authorize it):
+    - In the Add-Ons menu, find the new menu eg "md exporter"
+    - Select "Email md" to email markdown doc and saved images to yourself
+    -- Converted doc will be mailed to you. Subject will be "[MARKDOWN_MAKER]..."
+    - Select "Save md" to save markdown doc and images to your Google Drive
+    -- A new folder with same name as original doc will be created containing the files
 */
 
 function ConvertToMarkdown() {
@@ -70,11 +99,29 @@ function ConvertToMarkdown() {
   
   attachments.push({"fileName":DocumentApp.getActiveDocument().getName()+".md", "mimeType": "text/plain", "content": text});
   
+  return attachments
+}
+ 
+function emailMarkDown(){
+  attachments=ConvertToMarkdown()
   MailApp.sendEmail(Session.getActiveUser().getEmail(), 
                     "[MARKDOWN_MAKER] "+DocumentApp.getActiveDocument().getName(), 
                     "Your converted markdown document is attached (converted from "+DocumentApp.getActiveDocument().getUrl()+")"+
                     "\n\nDon't know how to use the format options? See http://github.com/mangini/gdocs2md\n",
                     { "attachments": attachments });
+}
+
+function saveMarkDown(){
+  attachments=ConvertToMarkdown()
+  folder=DocumentApp.getActiveDocument().getName()
+  fid=DriveApp.createFolder(folder)
+  for (var i=0; i<attachments.length; i++){
+    name=attachments[i]['fileName']
+    content=attachments[i]['content']
+    mimeType=attachments[i]['mimeType']
+    //f=DriveApp.createFile(name, content, mimeType)
+    fid.createFile(name, content, mimeType)
+  }
 }
 
 function escapeHTML(text) {
@@ -119,7 +166,10 @@ function processParagraph(index, element, inSrc, imageCounter, listCounters) {
   for (var i = 0; i < element.getNumChildren(); i++) {
     var t=element.getChild(i).getType();
     
-    if (t === DocumentApp.ElementType.TABLE_ROW) {
+    if (t === DocumentApp.ElementType.INLINE_DRAWING) {
+      // do nothing substantive: no export as image available for now?
+      textElements.push('\nINLINE_DRAWING - UNSUPPORTED EXPORT\n');
+    } else if (t === DocumentApp.ElementType.TABLE_ROW) {
       // do nothing: already handled TABLE_ROW
     } else if (t === DocumentApp.ElementType.TEXT) {
       var txt=element.getChild(i);
