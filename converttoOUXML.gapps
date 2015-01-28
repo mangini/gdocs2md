@@ -8,7 +8,8 @@
 function onOpen(e) {
   DocumentApp.getUi().createAddonMenu()
       .addItem('Email OUXML', 'emailOUXML')
-      .addItem('Save OUXML', 'saveOUXML')
+      .addItem('Save OUXML to GDrive', 'saveOUXML')
+      .addItem('Save OUXML to GDrive (zip)', 'saveOUXMLzip')
       .addToUi();
 }
 
@@ -49,9 +50,9 @@ function ConvertToOUXML() {
   var FOOTER='\n</Item>';
 
   var numChildren = DocumentApp.getActiveDocument().getActiveSection().getNumChildren();
-  var courseCode=;
+  var courseCode=COURSECODE;
   var courseTitle=COURSECODE;
-  var text = HEADER + '<CourseCode>'+courseCode+'</CourseCode>\n<CourseTitle>'+CourseTitle+'</CourseTitle>\n<ItemID/>\n<ItemTitle/>\n\n';
+  var text = HEADER + '<CourseCode>'+courseCode+'</CourseCode>\n<CourseTitle>'+courseTitle+'</CourseTitle>\n<ItemID/>\n<ItemTitle/>\n\n';
   text+="<Unit>\n<UnitID/>\n<UnitTitle>"+DocumentApp.getActiveDocument().getName()+"</UnitTitle>\n<ByLine/>\n"
   var inSrc = false;
   var inClass = false;
@@ -219,18 +220,23 @@ function ConvertToOUXML() {
   
   //Hack fixes - bleurghh
   text=text.replace(/<Session>\s*<\/Session>/g,'').replace(/<Section>\s*<\/Section>/g,'').replace(/<SubSection>\s*<\/SubSection>/g,'');
+  //?? More general to replace following with routine to add <Title></Title> if <Session> or <Section> tag 
+  // is followed by a tag that isn't <Title> ??
+  text=text.replace(/<Session>\s*<Section>/g,'<Session><Title></Title><Section>');
+  text=text.replace(/<Section>\s*<SubSection>/g,'<Section><Title></Title><SubSection>');
+  text=text.replace(/<Section>\s*<Paragraph>/g,'<Section><Title></Title><Paragraph>');
   text=text.replace(/<Paragraph>\s*<\/Paragraph>/,'').replace('</i><i>','').replace('</b><b>','');
   //replace ampersand
   //text = text.replace(/&amp;/g,"&").replace(/&/g,'&amp;');
   
   
-  attachments.push({"fileName":DocumentApp.getActiveDocument().getName()+".md", "mimeType": "text/plain", "content": text});
+  attachments.push({"fileName":DocumentApp.getActiveDocument().getName()+".xml", "mimeType": "text/xml", "content": text});
   
   return attachments
 }
  
 function emailOUXML(){
-  attachments=ConvertToOUXML()
+  var attachments=ConvertToOUXML()
   MailApp.sendEmail(Session.getActiveUser().getEmail(), 
                     "[MARKDOWN_MAKER] "+DocumentApp.getActiveDocument().getName(), 
                     "Your converted markdown document is attached (converted from "+DocumentApp.getActiveDocument().getUrl()+")"+
@@ -239,17 +245,33 @@ function emailOUXML(){
 }
 
 function saveOUXML(){
-  attachments=ConvertToOUXML()
-  folder=DocumentApp.getActiveDocument().getName()
-  fid=DriveApp.createFolder(folder)
+  var attachments=ConvertToOUXML()
+  var folder=DocumentApp.getActiveDocument().getName()
+  var fid=DriveApp.createFolder(folder)
   for (var i=0; i<attachments.length; i++){
-    name=attachments[i]['fileName']
-    content=attachments[i]['content']
-    mimeType=attachments[i]['mimeType']
+    var name=attachments[i]['fileName']
+    var content=attachments[i]['content']
+    var mimeType=attachments[i]['mimeType']
     //Inefficient and going round the houses - we converted out of blob originally...
     var blob= Utilities.newBlob(content, mimeType, name)
     fid.createFile(blob)
   }
+}
+
+function saveOUXMLzip(){
+  //via http://stackoverflow.com/a/13262602/454773
+  var attachments=ConvertToOUXML()
+  var folder=DocumentApp.getActiveDocument().getName()
+  var contents=[]
+  for (var i=0; i<attachments.length; i++){
+    var name=attachments[i]['fileName']
+    var content=attachments[i]['content']
+    var mimeType=attachments[i]['mimeType']
+    //Inefficient and going round the houses - we converted out of blob originally...
+    var blob= Utilities.newBlob(content, mimeType, name)
+    contents.push(blob)
+  }
+  DriveApp.createFile(Utilities.zip(contents, folder+'.zip'));
 }
 
 function escapeAmp(text) {
@@ -455,8 +477,11 @@ function processTextElement(inSrc, txt) {
   
   var pOut = txt.getText();
   if (! txt.getTextAttributeIndices) {
-    return pOut;
+    return escapeHTML(pOut);
   }
+  
+  //HACK
+  pOut=pOut.replace(/</g,'♣').replace(/>/g,'♦')
   Logger.log(pOut)
   var attrs=txt.getTextAttributeIndices();
   var lastOff=pOut.length;
@@ -521,5 +546,5 @@ function processTextElement(inSrc, txt) {
   //urlPatch=/(<a [^\[]*)\[\/AuthorComment\]([^>]*">)/;
   //pOut=pOut.replace(urlPatch, "$1$2");
   Logger.log(pOut);
-  return escapeAmp(pOut);
+  return escapeAmp(pOut).replace(/♣/g,'&lt;').replace(/♦/g,'&gt;');
 }
