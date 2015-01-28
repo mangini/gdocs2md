@@ -7,6 +7,7 @@
  */
 function onOpen(e) {
   DocumentApp.getUi().createAddonMenu()
+      .addItem('Metadata','metadataView')
       .addItem('Email OUXML', 'emailOUXML')
       .addItem('Save OUXML to GDrive', 'saveOUXML')
       .addItem('Save OUXML to GDrive (zip)', 'saveOUXMLzip')
@@ -40,13 +41,40 @@ Usage:
     -- A new folder with same name as original doc will be created containing the files
 */
 
+
+function metadataView() {
+  html= HtmlService
+      .createTemplateFromFile('metadata')
+      .evaluate()
+      .setSandboxMode(HtmlService.SandboxMode.IFRAME);
+  DocumentApp.getUi().showModalDialog(html, 'Metadata');
+}
+
+
+function processMetadataForm(theForm) {
+  var props=PropertiesService.getDocumentProperties()
+  //
+  for (var item in theForm) {
+    props.setProperty(item,theForm[item])
+    Logger.log(item+"::"+theForm[item]);
+  }
+}
+
+function getProp(key) {
+  var props= PropertiesService.getDocumentProperties()
+  return props.getProperty(key) ? props.getProperty(key) : '';
+}
+
+//------
 //User vars - pick these up eg from parent folder name?
-var COURSECODE='TM351-WS';
+
+var COURSECODE= getProp('courseCode');
 var ITEMID='X_exportPreview';
+var RENDERING=getProp('rendering')
 //-----
 
 function ConvertToOUXML() {
-  var HEADER='<Item id="'+ITEMID+'" TextType="CompleteItem" SchemaVersion="2.0" PageStartNumber="1" Template="Generic_A4_Unnumbered" Module="default" DiscussionAlias="Discussion" SessionAlias="" SecondColour="None" ThirdColour="None" FourthColour="None" Logo="colour" Rendering="">\n';
+  var HEADER='<Item id="'+ITEMID+'" TextType="CompleteItem" SchemaVersion="2.0" PageStartNumber="1" Template="Generic_A4_Unnumbered" Module="default" DiscussionAlias="Discussion" SessionAlias="" SecondColour="None" ThirdColour="None" FourthColour="None" Logo="colour" Rendering="'+RENDERING+'">\n';
   var FOOTER='\n</Item>';
 
   var numChildren = DocumentApp.getActiveDocument().getActiveSection().getNumChildren();
@@ -238,7 +266,7 @@ function ConvertToOUXML() {
 function emailOUXML(){
   var attachments=ConvertToOUXML()
   MailApp.sendEmail(Session.getActiveUser().getEmail(), 
-                    "[MARKDOWN_MAKER] "+DocumentApp.getActiveDocument().getName(), 
+                    "[OUXML_MAKER] "+DocumentApp.getActiveDocument().getName(), 
                     "Your converted markdown document is attached (converted from "+DocumentApp.getActiveDocument().getUrl()+")"+
                     "\n\nDon't know how to use the format options? See http://github.com/mangini/gdocs2md\n",
                     { "attachments": attachments });
