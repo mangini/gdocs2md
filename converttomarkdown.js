@@ -9,7 +9,7 @@ A simple Google Apps script to convert a properly formatted Google Drive Documen
 ### Adding to a document
 This script must be added to a document to run it - the document doesn't need to be the one you wish to export:
  1. Tools > Script Editor > New
- 2. Select "Blank Project", then paste this code in and save.
+ 2. Select "Blank Project", then paste the code from converttomarkdown.js into it and save.
 
 ### Preparing files
 Put all documents you wish to convert into category folders within a folder in your docs list, called "DocsToConvertToMarkdown". Each category folder can contain multiple documents. You can use just one category folder, e.g. "default" if you don't want to use categories.
