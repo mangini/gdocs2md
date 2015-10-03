@@ -51,7 +51,18 @@ function ConvertToMarkdown() {
       } else if (inSrc) {
         text+=(srcIndent+escapeHTML(result.text)+"\n");
       } else if (result.text && result.text.length>0) {
-        text+=result.text+"\n\n";
+        // SM-Mark: Only insert a blank line when this is the last list item
+        if (child.getType()!==DocumentApp.ElementType.LIST_ITEM) {
+          text+=result.text+"\n\n";
+        } else {
+          text+=result.text+"\n";
+          if (i < numChildren - 1) {
+            var nextChild = DocumentApp.getActiveDocument().getActiveSection().getChild(i+1);
+            if (nextChild.getType()!==DocumentApp.ElementType.LIST_ITEM) {
+              text+="\n";
+            }
+          }
+        }
       }
       
       if (result.images && result.images.length>0) {
@@ -182,7 +193,7 @@ function processParagraph(index, element, inSrc, imageCounter, listCounters) {
   } else {
 
     prefix = findPrefix(inSrc, element, listCounters);
-  
+
     var pOut = "";
     for (var i=0; i<textElements.length; i++) {
       pOut += processTextElement(inSrc, textElements[i]);
