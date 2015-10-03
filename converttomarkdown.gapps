@@ -227,11 +227,7 @@ function findPrefix(inSrc, element, listCounters) {
         prefix += "* ";
       } else {
         // Ordered list (<ol>):
-        var key = listItem.getListId() + '.' + listItem.getNestingLevel();
-        var counter = listCounters[key] || 0;
-        counter++;
-        listCounters[key] = counter;
-        prefix += counter+". ";
+        prefix = "1. ";
       }
     }
   }
