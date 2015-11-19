@@ -103,13 +103,40 @@ function processParagraph(index, element, inSrc, imageCounter, listCounters) {
   // doesn't make sense to add markup within tables.
   if (element.getType() === DocumentApp.ElementType.TABLE) {
     var nCols = element.getChild(0).getNumCells();
+
+    //Get formatting information
+    var columnMinWidths = [];
+    for (var j = 0; j < nCols; j++) {
+        columnMinWidths[j] = 0;
+        for (var i = 0; i < element.getNumChildren(); i++) {
+          var cellLength = element.getChild(i).getChild(j).getText().length
+          if(cellLength > columnMinWidths[j]) {
+            columnMinWidths[j] = cellLength;
+          }
+        }
+    }
+
     for (var i = 0; i < element.getNumChildren(); i++) {
       // process this row
       for (var j = 0; j < nCols; j++) {
+
+        var minLength = columnMinWidths[j]
+        var text = element.getChild(i).getChild(j).getText()
+        var textLength = text.length
+        var lengthDiff = (minLength - textLength) > 0 ? (minLength - textLength) : 0
+
         if(j == 0) {
           textElements.push("| ");
         }
-        textElements.push(element.getChild(i).getChild(j).getText() + " | ");
+
+        textElements.push(text);
+
+        for (k = 0; k < lengthDiff; k++) { 
+          textElements.push(" ");
+        }
+
+        textElements.push(" | ");
+        
         if(j == nCols - 1) {
           textElements.push("\n");
         }
@@ -117,10 +144,17 @@ function processParagraph(index, element, inSrc, imageCounter, listCounters) {
       
       if(i == 0) {
         for (var j = 0; j < nCols; j++) {
+          var minLength = columnMinWidths[j]
           if(j == 0) {
             textElements.push("|");
           }
-          textElements.push("-----------|");
+
+          for (k = 0; k < minLength + 2; k++) { 
+            textElements.push("-");
+          }
+
+          textElements.push("|");
+
           if(j == nCols - 1) {
             textElements.push("\n");
           }
