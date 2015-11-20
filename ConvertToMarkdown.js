@@ -89,7 +89,7 @@ function processParagraph(index, element, inSrc, imageCounter, listCounters) {
   }  
   // Punt on TOC.
   if (element.getType() === DocumentApp.ElementType.TABLE_OF_CONTENTS) {
-    return {"text": "[[TOC]]"};
+    return {"text": "@[toc]"};
   }
   
   // Set up for real results.
