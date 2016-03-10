@@ -16,7 +16,7 @@ A simple Google Apps script to convert a properly formatted Google Drive Documen
     - Tools > Script Manager
     - Select "ConvertToMarkdown" function.
     - Click Run button (First run will require you to authorize it. Authorize and run again)
-    - Converted doc with images attached will be emailed to you. Subject will be "[MARKDOWN_MAKER]...".
+    - Converted doc will be saved as `"Markdown_"+original_file_name+".md"` in your gdocs
 
 
 ## Interpreted formats
