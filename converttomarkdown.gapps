@@ -151,6 +151,8 @@ function processParagraph(index, element, inSrc, imageCounter, listCounters) {
       textElements.push('* * *\n');
     } else if (t === DocumentApp.ElementType.FOOTNOTE) {
       textElements.push(' (NOTE: '+element.getChild(i).getFootnoteContents().getText()+')');
+    } else if (t === DocumentApp.ElementType.INLINE_DRAWING) {
+      // ignore
     } else {
       throw "Paragraph "+index+" of type "+element.getType()+" has an unsupported child: "
       +t+" "+(element.getChild(i)["getText"] ? element.getChild(i).getText():'')+" index="+index;
