@@ -235,7 +235,7 @@ function findPrefix(inSrc, element, listCounters) {
       if (gt === DocumentApp.GlyphType.BULLET
           || gt === DocumentApp.GlyphType.HOLLOW_BULLET
           || gt === DocumentApp.GlyphType.SQUARE_BULLET) {
-        prefix += "* ";
+        prefix += "- ";
       } else {
         // Ordered list (<ol>):
         prefix = "1. ";
