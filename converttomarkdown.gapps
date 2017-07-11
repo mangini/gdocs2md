@@ -14,6 +14,7 @@ function ConvertToMarkdown() {
   var numChildren = DocumentApp.getActiveDocument().getActiveSection().getNumChildren();
   var text = "";
   var inSrc = false;
+  var inList = false;
   var inClass = false;
   var globalImageCounter = 0;
   var globalListCounters = {};
@@ -51,7 +52,11 @@ function ConvertToMarkdown() {
       } else if (inSrc) {
         text+=(srcIndent+escapeHTML(result.text)+"\n");
       } else if (result.text && result.text.length>0) {
-        text+=result.text+"\n\n";
+        var isListItem = (result.text.charAt(0) == '-');
+        if(inList && !isListItem || !inList && isListItem || !inList && !isListItem)
+          text += "\n";
+        text += result.text + "\n";
+        inList = isListItem;
       }
       
       if (result.images && result.images.length>0) {
@@ -68,11 +73,11 @@ function ConvertToMarkdown() {
       
   }
   
-  attachments.push({"fileName":DocumentApp.getActiveDocument().getName()+".md", "mimeType": "text/plain", "content": text});
+  attachments.push({"fileName": DocumentApp.getActiveDocument().getName() + ".md", "mimeType": "text/plain", "content": text});
   
   MailApp.sendEmail(Session.getActiveUser().getEmail(), 
-                    "[MARKDOWN_MAKER] "+DocumentApp.getActiveDocument().getName(), 
-                    "Your converted markdown document is attached (converted from "+DocumentApp.getActiveDocument().getUrl()+")"+
+                    "[MARKDOWN] "+DocumentApp.getActiveDocument().getName(), 
+                    "Your converted markdown document is attached (converted from " + DocumentApp.getActiveDocument().getUrl() + ")" +
                     "\n\nDon't know how to use the format options? See http://github.com/mangini/gdocs2md\n",
                     { "attachments": attachments });
 }
@@ -138,7 +143,7 @@ function processParagraph(index, element, inSrc, imageCounter, listCounters) {
     } else if (t === DocumentApp.ElementType.TEXT) {
       var txt=element.getChild(i);
       pOut += txt.getText();
-      textElements.push(txt);
+      textElements.push(escapeHTML(processTextElement(inSrc, txt)));
     } else if (t === DocumentApp.ElementType.INLINE_IMAGE) {
       result.images = result.images || [];
       var contentType = element.getChild(i).getBlob().getContentType();
@@ -167,7 +172,7 @@ function processParagraph(index, element, inSrc, imageCounter, listCounters) {
       textElements.push(' (NOTE: '+element.getChild(i).getFootnoteContents().getText()+')');
     } else {
       throw "Paragraph "+index+" of type "+element.getType()+" has an unsupported child: "
-      +t+" "+(element.getChild(i)["getText"] ? element.getChild(i).getText():'')+" index="+index;
+      + t +" "+(element.getChild(i)["getText"] ? element.getChild(i).getText():'')+" index="+index;
     }
   }
 
@@ -194,18 +199,16 @@ function processParagraph(index, element, inSrc, imageCounter, listCounters) {
                   'src="http://www.html5rocks.com/static/jsperfview/embed.html?id='+RegExp.$1+
                   '"></iframe>';
   } else {
-
     prefix = findPrefix(inSrc, element, listCounters);
   
     var pOut = "";
-    for (var i=0; i<textElements.length; i++) {
+    for (var i=0; i < textElements.length; i++) {
       pOut += processTextElement(inSrc, textElements[i]);
     }
 
     // replace Unicode quotation marks
-    pOut = pOut.replace('\u201d', '"').replace('\u201c', '"');
- 
-    result.text = prefix+pOut;
+    pOut = pOut.replace('\u201d', '"').replace('\u201c', '"'); 
+    result.text = prefix + pOut;
   }
   
   return result;
@@ -238,7 +241,7 @@ function findPrefix(inSrc, element, listCounters) {
       if (gt === DocumentApp.GlyphType.BULLET
           || gt === DocumentApp.GlyphType.HOLLOW_BULLET
           || gt === DocumentApp.GlyphType.SQUARE_BULLET) {
-        prefix += "* ";
+        prefix += "- ";
       } else {
         // Ordered list (<ol>):
         var key = listItem.getListId() + '.' + listItem.getNestingLevel();
