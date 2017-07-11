@@ -36,8 +36,10 @@ A simple Google Apps script to convert a properly formatted Google Drive Documen
     * Source code: 
       * **UPDATED**: blocks of text delimited by "--- source code" or "--- src" and "---" are converted to `<pre></pre>`
       * **NEW**: blocks of text delimited by "--- source pretty" or "--- srcp" and "---" are converted to `<pre class="prettyprint"></pre>`
+      * **NEW**: a table of a single row and cell will be processed a source.
     * Tables:
       * **NEW**: Simple `<table>` processing
+      * **NEW**: Table processing using markdowns syntax 
   * "--- jsperf `<testID>`" is replaced by an iframe that shows an interactive chart of a JSPerf test. The `<testID>` is the last part of the URL of the Browserscope anchor in your JSPerf test. Something like `"agt1YS1wcm9maWxlcnINCxIEVGVzdBjlm_EQDA"` in the URL `http://www.browserscope.org/user/tests/table/agt1YS1wcm9maWxlcnINCxIEVGVzdBjlm_EQDA`
  
 
@@ -46,6 +48,7 @@ A simple Google Apps script to convert a properly formatted Google Drive Documen
 
 * Renato Mangini - [G+](//google.com/+renatomangini) - [Github](//github.com/mangini)
 * Ed Bacher - [G+](//plus.google.com/106923847899206957842) - [Github](//github.com/evbacher)
+* Markus Brigl - [G+](//plus.google.com/u/0/115162351206661801725) - [Github](//github.com/mbrigl)
 
 ## LICENSE
 
