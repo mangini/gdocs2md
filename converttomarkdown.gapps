@@ -251,6 +251,8 @@ function processTextElement(inSrc, txt) {
   var attrs=txt.getTextAttributeIndices();
   var lastOff=pOut.length;
 
+  const COURIER_NEW = "Courier New";
+
   for (var i=attrs.length-1; i>=0; i--) {
     var off=attrs[i];
     var url=txt.getLinkUrl(off);
@@ -264,8 +266,8 @@ function processTextElement(inSrc, txt) {
       }
       pOut=pOut.substring(0, off)+'['+pOut.substring(off, lastOff)+']('+url+')'+pOut.substring(lastOff);
     } else if (font) {
-      if (!inSrc && font===font.COURIER_NEW) {
-        while (i>=1 && txt.getFontFamily(attrs[i-1]) && txt.getFontFamily(attrs[i-1])===font.COURIER_NEW) {
+      if (!inSrc && font===COURIER_NEW) {
+        while (i>=1 && txt.getFontFamily(attrs[i-1]) && txt.getFontFamily(attrs[i-1])===COURIER_NEW) {
           // detect fonts that are in multiple pieces because of errors on formatting:
           i-=1;
           off=attrs[i];
